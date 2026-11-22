@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="黑森林降临节秘柜" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b0910" />
+  <title>黑森林 24 格机械降临节秘柜 · The Grand Advent Wunderkammer</title>
+  <meta name="description" content="矗立于暴风雪冬夜窗前的 1884 年黑森林巴洛克胡桃木 24 格机械降临节奇珍柜：24 座独立 3D 微缩发条机关、顶阁布谷鸟与吹号天使报时台、松果重锤与八首古典八音管风琴圣咏。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://redbookmomo-netizen.github.io/advent-wunderkammer/" />
+  <meta property="og:title" content="黑森林 24 格机械降临节秘柜 · The Grand Advent Wunderkammer" />
+  <meta property="og:description" content="推开 24 扇鎏金树瘤木暗门与丝绒抽屉，把玩 24 座动态 3D 微缩发条奇观，拉动黄铜松果重锤奏响平安夜报时大机关。" />
+  <meta property="og:image" content="https://redbookmomo-netizen.github.io/advent-wunderkammer/og-cover.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <style>
+    :root {
+      --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "Cormorant Garamond", "Baskerville", Georgia, serif;
+      --sans: "Optima", "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, sans-serif;
+
+      --brass: #e4bf70;
+      --brass-bright: #fae2a0;
+      --brass-border: rgba(228, 191, 112, 0.36);
+      --brass-subtle: rgba(228, 191, 112, 0.18);
+      --walnut-glass: rgba(20, 12, 9, 0.78);
+      --walnut-deep: rgba(14, 8, 6, 0.90);
+      --crimson-accent: #8e1b2e;
+      --parchment: #f4ead4;
+      --parchment-2: #e8d9b8;
+      --ink: #281a12;
+      --ink-soft: #5c4333;
+      --cream: #f7efe0;
+      --cream-muted: rgba(247, 239, 224, 0.72);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 620px;
+      height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+      background: #0b0910;
+      color: var(--cream);
+      font-family: var(--serif);
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button {
+      font-family: inherit;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+
+    #wunderkammer-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: grab;
+      z-index: 1;
+    }
+
+    #wunderkammer-canvas:active {
+      cursor: grabbing;
+    }
+
+    .viewport-vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background: radial-gradient(ellipse 88% 84% at 50% 48%, rgba(10, 7, 12, 0) 56%, rgba(6, 4, 8, 0.56) 100%);
+    }
+
+    /* ==================== TOP HEADER ==================== */
+    .top-hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
+      background: linear-gradient(180deg, rgba(10, 6, 8, 0.82) 0%, rgba(10, 6, 8, 0.36) 68%, rgba(10, 6, 8, 0) 100%);
+      pointer-events: none;
+    }
+
+    .brand-block {
+      pointer-events: auto;
+    }
+
+    .brand-block h1 {
+      margin: 0;
+      font-size: clamp(16px, 2.3vw, 22px);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--brass-bright);
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+      line-height: 1.25;
+    }
+
+    .brand-sub {
+      margin: 2px 0 0;
+      font-size: clamp(11px, 1.3vw, 12.5px);
+      letter-spacing: 0.06em;
+      color: var(--cream-muted);
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+    }
+
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .brass-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--brass-border);
+      background: var(--walnut-glass);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--cream);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      transition: transform 0.16s ease, border-color 0.2s ease, background 0.2s ease;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.42);
+      white-space: nowrap;
+    }
+
+    .brass-btn:hover {
+      border-color: var(--brass);
+      background: rgba(36, 20, 14, 0.88);
+    }
+
+    .brass-btn:active {
+      transform: scale(0.96);
+    }
+
+    .brass-btn.active-gold {
+      background: linear-gradient(135deg, rgba(142, 27, 46, 0.85), rgba(64, 24, 18, 0.9));
+      border-color: var(--brass-bright);
+      color: var(--brass-bright);
+    }
+
+    /* ==================== TOAST BANNER ==================== */
+    .toast-banner {
+      position: fixed;
+      top: calc(max(12px, env(safe-area-inset-top)) + 56px);
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      z-index: 25;
+      padding: 7px 16px;
+      border-radius: 999px;
+      background: rgba(20, 11, 8, 0.9);
+      border: 1px solid var(--brass);
+      color: var(--brass-bright);
+      font-size: 12.5px;
+      letter-spacing: 0.05em;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.28s ease, transform 0.28s ease;
+      white-space: nowrap;
+      max-width: 92vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast-banner.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ==================== BOTTOM FULL-CABINET DOCK ==================== */
+    .bottom-dock {
+      position: fixed;
+      left: 50%;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 12;
+      width: min(560px, calc(100vw - 20px));
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 9px 12px;
+      border-radius: 16px;
+      background: var(--walnut-glass);
+      border: 1px solid var(--brass-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.58);
+      transition: opacity 0.28s ease, transform 0.28s ease;
+    }
+
+    .bottom-dock.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(18px);
+    }
+
+    .music-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--brass-subtle);
+    }
+
+    .play-pill {
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--brass);
+      background: linear-gradient(180deg, rgba(66, 38, 22, 0.92), rgba(35, 19, 11, 0.95));
+      color: var(--brass-bright);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .track-selector-btn {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      color: var(--cream);
+      font-size: 12.5px;
+      text-align: left;
+      padding: 2px 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: 0.03em;
+    }
+
+    .track-selector-btn span {
+      color: var(--cream-muted);
+      font-size: 11.5px;
+    }
+
+    .icon-mini-btn {
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--brass-border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--cream);
+      font-size: 11.5px;
+      white-space: nowrap;
+    }
+
+    .dock-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .dock-action-btn {
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--brass-subtle);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--cream);
+      font-size: 12px;
+      letter-spacing: 0.03em;
+      text-align: center;
+      transition: background 0.18s ease, border-color 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .dock-action-btn:hover {
+      background: rgba(228, 191, 112, 0.14);
+      border-color: var(--brass);
+    }
+
+    /* ==================== REPERTOIRE POPUP MODAL ==================== */
+    .repertoire-sheet {
+      position: fixed;
+      left: 50%;
+      bottom: calc(max(12px, env(safe-area-inset-bottom)) + 96px);
+      transform: translateX(-50%) translateY(12px);
+      z-index: 22;
+      width: min(440px, calc(100vw - 24px));
+      max-height: 54dvh;
+      overflow-y: auto;
+      padding: 12px;
+      border-radius: 16px;
+      background: var(--walnut-deep);
+      border: 1px solid var(--brass);
+      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.78);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    .repertoire-sheet.open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--brass-subtle);
+      font-size: 13px;
+      color: var(--brass-bright);
+      letter-spacing: 0.06em;
+    }
+
+    .track-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      margin-bottom: 4px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--cream);
+      text-align: left;
+      font-size: 12.5px;
+    }
+
+    .track-item:hover {
+      background: rgba(228, 191, 112, 0.11);
+    }
+
+    .track-item.current {
+      border-color: var(--brass);
+      background: rgba(142, 27, 46, 0.42);
+      color: var(--brass-bright);
+    }
+
+    .track-item small {
+      color: var(--cream-muted);
+      font-size: 11px;
+    }
+
+    /* ==================== CURIO INSPECTOR & LORE CARD ==================== */
+    .curio-inspector {
+      position: fixed;
+      left: 50%;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(24px);
+      z-index: 18;
+      width: min(500px, calc(100vw - 20px));
+      padding: 13px 15px;
+      border-radius: 18px;
+      background: var(--walnut-deep);
+      border: 1px solid var(--brass);
+      box-shadow: 0 14px 42px rgba(0, 0, 0, 0.76);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.28s ease, transform 0.28s ease;
+    }
+
+    .curio-inspector.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .inspector-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .day-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(142, 27, 46, 0.72);
+      border: 1px solid var(--brass);
+      color: var(--brass-bright);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .curio-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--brass-bright);
+      letter-spacing: 0.05em;
+    }
+
+    .curio-german {
+      margin: 2px 0 0;
+      font-size: 11.5px;
+      font-style: italic;
+      color: var(--cream-muted);
+    }
+
+    .close-Zoom-btn {
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--brass-border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--cream);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .curio-summary {
+      margin: 8px 0 10px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--cream);
+    }
+
+    /* Expandable Antique Parchment Lore Slip */
+    .lore-parchment {
+      display: none;
+      margin: 0 0 10px;
+      padding: 11px 13px;
+      border-radius: 10px;
+      background: linear-gradient(165deg, var(--parchment), var(--parchment-2));
+      border: 1px solid #c5a467;
+      color: var(--ink);
+      font-size: 12.8px;
+      line-height: 1.68;
+      max-height: 24dvh;
+      overflow-y: auto;
+      box-shadow: inset 0 0 18px rgba(128, 86, 32, 0.18);
+    }
+
+    .lore-parchment.open {
+      display: block;
+    }
+
+    .lore-parchment strong {
+      display: block;
+      font-size: 11.5px;
+      letter-spacing: 0.08em;
+      color: var(--ink-soft);
+      margin-bottom: 4px;
+    }
+
+    .inspector-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 9px;
+    }
+
+    .trigger-toy-btn {
+      flex: 1.35;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--brass-bright);
+      background: linear-gradient(135deg, #8e1b2e, #59111d);
+      color: var(--brass-bright);
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .lore-btn {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--brass-border);
+      background: rgba(228, 191, 112, 0.12);
+      color: var(--cream);
+      font-size: 12.5px;
+    }
+
+    .inspector-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--brass-subtle);
+    }
+
+    .nav-step-btn {
+      padding: 5px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--brass-subtle);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--cream);
+      font-size: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .top-hud {
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .brand-block h1 {
+        font-size: 16.5px;
+        white-space: nowrap;
+        text-align: center;
+      }
+      .brand-sub {
+        display: none;
+      }
+      .top-actions {
+        justify-content: center;
+        flex-wrap: nowrap;
+        gap: 5px;
+      }
+      .brass-btn {
+        padding: 4.5px 9px;
+        font-size: 11.5px;
+      }
+      .dock-action-btn {
+        font-size: 11.5px;
+        padding: 6px 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="wunderkammer-canvas" aria-label="黑森林 24 格机械降临节秘柜 3D 交互舞台"></canvas>
+  <div class="viewport-vignette"></div>
+
+  <!-- Top Editorial Header -->
+  <header class="top-hud">
+    <div class="brand-block">
+      <h1>黑森林机械降临节秘柜</h1>
+      <p class="brand-sub">Der Schwarzwald-Adventsschrank · No. 24 Uhrmachergasse · 1884</p>
+    </div>
+    <div class="top-actions">
+      <button id="mode-btn" type="button" class="brass-btn active-gold" title="切换全开把玩模式或真实十二月降临节日历锁">
+        🗝️ 全开把玩
+      </button>
+      <button id="atmo-btn" type="button" class="brass-btn" title="切换冬夜光影氛围">
+        🔥 炉火雪夜
+      </button>
+      <button id="mute-btn" type="button" class="brass-btn" title="开启或静音八音声效">
+        🔊 声效
+      </button>
+    </div>
+  </header>
+
+  <!-- Floating Toast Feedback -->
+  <div id="toast-banner" class="toast-banner" role="status" aria-live="polite"></div>
+
+  <!-- Repertoire Selection Sheet -->
+  <aside id="repertoire-sheet" class="repertoire-sheet" aria-label="内置古典曲目单">
+    <div class="sheet-header">
+      <span>🎼 瑞士钢片音梳与木管风琴 · 八首精选曲目</span>
+      <button id="close-sheet-btn" type="button" class="icon-mini-btn">收起</button>
+    </div>
+    <div id="track-list"></div>
+  </aside>
+
+  <!-- Bottom Full-Cabinet Control Dock -->
+  <nav id="bottom-dock" class="bottom-dock" aria-label="秘柜主控台">
+    <div class="music-row">
+      <button id="play-btn" type="button" class="play-pill">▶ 八音奏鸣</button>
+      <button id="open-sheet-btn" type="button" class="track-selector-btn" title="点击展开八首曲目单">
+        ♪ <strong id="current-track-title">糖梅仙子之舞</strong> <span id="current-track-idx">(1/8 · 选曲 ▾)</span>
+      </button>
+      <button id="next-track-btn" type="button" class="icon-mini-btn" title="切换下一首">⏭ 换曲</button>
+    </div>
+    <div class="dock-actions">
+      <button id="finder-btn" type="button" class="dock-action-btn">✨ 寻门 <span id="progress-count">0/24</span></button>
+      <button id="finale-btn" type="button" class="dock-action-btn">🔔 报时大机关</button>
+      <button id="all-doors-btn" type="button" class="dock-action-btn">🚪 全柜盛开</button>
+    </div>
+  </nav>
+
+  <!-- Close-up Curio Inspector & Lore Card -->
+  <section id="curio-inspector" class="curio-inspector" aria-label="奇珍龛特写详情">
+    <div class="inspector-top">
+      <div>
+        <span id="curio-badge" class="day-badge">No. 01 · I</span>
+        <h2 id="curio-title" class="curio-title">钟罩冰晶冬青玫瑰</h2>
+        <p id="curio-german" class="curio-german">Die Kristallrose unter Glas</p>
+      </div>
+      <button id="zoom-out-btn" type="button" class="close-Zoom-btn">✕ 退回全柜</button>
+    </div>
+
+    <p id="curio-summary" class="curio-summary"></p>
+
+    <div id="lore-parchment" class="lore-parchment">
+      <strong>📜 《黑森林守柜人冬夜手记》</strong>
+      <div id="lore-text"></div>
+    </div>
+
+    <div class="inspector-buttons">
+      <button id="curio-action-btn" type="button" class="trigger-toy-btn">✨ 拨动机关</button>
+      <button id="lore-toggle-btn" type="button" class="lore-btn">📜 展开守柜人手记</button>
+    </div>
+
+    <div class="inspector-nav">
+      <button id="prev-day-btn" type="button" class="nav-step-btn">◀ 上一格</button>
+      <button id="shut-door-btn" type="button" class="nav-step-btn">合上此门</button>
+      <button id="next-day-btn" type="button" class="nav-step-btn">下一格 ▶</button>
+    </div>
+  </section>
+
+  <!-- BUNDLE_SCRIPT_PLACEHOLDER -->
+</body>
+</html>
