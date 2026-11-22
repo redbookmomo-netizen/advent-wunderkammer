@@ -63,7 +63,9 @@ function initSpatialApp() {
   const saved = loadState();
   let realDateLock = saved?.realDateLock ?? false;
   let openedDays = new Set(Array.isArray(saved?.openedDays) ? saved.openedDays : []);
+  let exploredDays = new Set(Array.isArray(saved?.exploredDays) ? saved.exploredDays : Array.from(openedDays));
   let focusDay = null;
+  let focusWasAlreadyOpen = false;
   let cascadeTimers = [];
 
   openedDays.forEach((d) => {
@@ -97,7 +99,8 @@ function initSpatialApp() {
   const heldTitleEl = document.getElementById('held-title');
   const windCurioBtn = document.getElementById('wind-curio-btn');
   const flipCurioBtn = document.getElementById('flip-curio-btn');
-  const putBackBtn = document.getElementById('put-back-btn');
+  const putBackCloseBtn = document.getElementById('put-back-close-btn');
+  const putBackOpenBtn = document.getElementById('put-back-open-btn');
   const prevCurioBtn = document.getElementById('prev-curio-btn');
   const nextCurioBtn = document.getElementById('next-curio-btn');
 
@@ -112,7 +115,8 @@ function initSpatialApp() {
   function persist() {
     saveState({
       realDateLock,
-      openedDays: Array.from(openedDays)
+      openedDays: Array.from(openedDays),
+      exploredDays: Array.from(exploredDays)
     });
   }
 
@@ -137,8 +141,8 @@ function initSpatialApp() {
   });
 
   function syncUI() {
-    const allOpen = openedDays.size >= 24;
-    spatial.setSwitchStates(realDateLock, allOpen);
+    const anyManyOpen = openedDays.size >= 12;
+    spatial.setSwitchStates(realDateLock, openedDays.size >= 24);
 
     hudDateBtn.textContent = realDateLock ? '📅 日历锁开启' : '🗝️ 自由把玩';
     hudDateBtn.classList.toggle('active-mode', !realDateLock);
@@ -149,8 +153,8 @@ function initSpatialApp() {
     currentTrackTitle.textContent = piece.title;
     currentTrackIdx.textContent = `(${audio.trackIndex + 1}/${MUSIC_REPERTOIRE.length} · 选曲 ▾)`;
 
-    progressCountEl.textContent = `${openedDays.size}/24`;
-    allDoorsBtn.textContent = allOpen ? '🚪 全柜合拢' : '🚪 全柜盛开';
+    progressCountEl.textContent = `${exploredDays.size}/24`;
+    allDoorsBtn.textContent = anyManyOpen ? '🚪 全柜合拢' : '🚪 全柜盛开';
 
     trackListEl.querySelectorAll('.track-row').forEach((row, idx) => {
       row.classList.toggle('current', idx === audio.trackIndex);
@@ -158,10 +162,12 @@ function initSpatialApp() {
   }
 
   // ==================== CAMERA & HELD-IN-HAND 3D CHOREOGRAPHY ====================
-  let orbitYaw = 0;
-  let orbitPitch = 0.02;
-  let targetOrbitYaw = 0;
-  let targetOrbitPitch = 0.02;
+  // Start with a cinematic three-quarter 3D angle (-0.30 -> -0.14) so the 1m-deep walnut side wall,
+  // overhanging snow-shingle chalet roof & 22cm plinth ledge show true 3D furniture volume immediately!
+  let orbitYaw = -0.32;
+  let orbitPitch = 0.075;
+  let targetOrbitYaw = -0.14;
+  let targetOrbitPitch = 0.038;
   let overviewZoom = 1.0;
   let targetOverviewZoom = 1.0;
 
@@ -181,7 +187,7 @@ function initSpatialApp() {
 
   function getOverviewDistance() {
     const aspect = Math.max(0.38, window.innerWidth / Math.max(1, window.innerHeight));
-    return Math.max(11.2, 6.45 / aspect);
+    return Math.max(11.4, 6.55 / aspect);
   }
 
   function updateCameraAndHandTargets() {
@@ -205,10 +211,10 @@ function initSpatialApp() {
 
     // Overview 3D Cabinet Orbit & Dolly Zoom
     const dist = getOverviewDistance() * overviewZoom;
-    desiredCamTarget.set(0, 0.08, -0.08);
+    desiredCamTarget.set(0, 0.06, -0.16);
     desiredCamPos.set(
       Math.sin(orbitYaw) * dist,
-      0.08 + Math.sin(orbitPitch) * dist * 0.55,
+      0.06 + Math.sin(orbitPitch) * dist * 0.55,
       Math.cos(orbitYaw) * dist
     );
     return 0.7;
@@ -218,7 +224,17 @@ function initSpatialApp() {
   camPos.copy(desiredCamPos);
   camTarget.copy(desiredCamTarget);
 
-  // ==================== COMPARTMENT PICK-UP & PUT-BACK ====================
+  // ==================== COMPARTMENT OPEN, CLOSE, PICK-UP & PUT-BACK ====================
+  function closeSingleDoor(day, playSound = true) {
+    const comp = spatial.compartments[day];
+    if (!comp || !comp.isOpen) return;
+    comp.isOpen = false;
+    openedDays.delete(day);
+    if (playSound) audio.playSfx('doorClose');
+    persist();
+    syncUI();
+  }
+
   function inspectAndHoldCurio(day) {
     const info = ADVENT_BY_DAY[day];
     const comp = spatial.compartments[day];
@@ -232,6 +248,14 @@ function initSpatialApp() {
     }
 
     repertoireSheet.classList.remove('open');
+
+    // If switching directly from another held curio that wasn't previously open, tidy & shut the previous door!
+    if (focusDay && focusDay !== day && !focusWasAlreadyOpen) {
+      closeSingleDoor(focusDay, false);
+    }
+
+    focusWasAlreadyOpen = comp.isOpen;
+    exploredDays.add(day);
 
     if (!comp.isOpen) {
       comp.isOpen = true;
@@ -249,29 +273,47 @@ function initSpatialApp() {
         audio.playSfx('doorOpen');
       }
     } else {
+      persist();
+      syncUI();
       audio.playSfx(info.sfx);
     }
 
     focusDay = day;
-    heldYaw = 0.08;
-    heldPitch = -0.04;
-    targetHeldYaw = 0;
-    targetHeldPitch = 0;
+    heldYaw = -0.12;
+    heldPitch = 0.04;
+    targetHeldYaw = -0.06;
+    targetHeldPitch = 0.02;
     targetHeldScaleAdj = 1.0;
 
     spatial.pullOutCurio(day);
 
     heldTitleEl.textContent = `No. ${pad2(day)} · ${info.title}`;
-    flipCurioBtn.textContent = '🔄 翻看背面铭牌';
+    flipCurioBtn.textContent = '🔄 翻看背面';
     bottomDock.classList.add('hidden');
     heldHud.classList.add('visible');
   }
 
-  function releaseHeldCurio() {
+  function releaseHeldCurio(closeDoor = true) {
     if (!focusDay) return;
+    const returningDay = focusDay;
     focusDay = null;
-    spatial.putBackCurio();
-    audio.playSfx('doorClose');
+
+    if (closeDoor) {
+      spatial.putBackCurio(true, (shutDay) => {
+        openedDays.delete(shutDay);
+        audio.playSfx('doorClose');
+        persist();
+        syncUI();
+      });
+    } else {
+      openedDays.add(returningDay);
+      spatial.putBackCurio(false, null);
+      audio.playSfx('page');
+      persist();
+      syncUI();
+      showToast(`📥 已放回第 ${returningDay} 号木龛（再次轻点敞开的木门即可合上）`, 2600);
+    }
+
     heldHud.classList.remove('visible');
     bottomDock.classList.remove('hidden');
   }
@@ -297,10 +339,10 @@ function initSpatialApp() {
   function toggleOpenAllDoors() {
     audio.unlock();
     clearCascades();
-    if (focusDay) releaseHeldCurio();
+    if (focusDay) releaseHeldCurio(false);
     audio.playSfx('switchClick');
 
-    if (openedDays.size >= 24) {
+    if (openedDays.size >= 12) {
       for (let d = 1; d <= 24; d++) {
         spatial.compartments[d].isOpen = false;
       }
@@ -308,7 +350,7 @@ function initSpatialApp() {
       audio.playSfx('doorClose');
       persist();
       syncUI();
-      showToast('🚪 24 扇 3D 浮雕金门已轻声合拢');
+      showToast('🚪 24 扇 3D 浮雕金门已全部轻声合拢');
     } else {
       realDateLock = false;
       if (!audio.playing) audio.startMusic();
@@ -316,6 +358,7 @@ function initSpatialApp() {
         const t = setTimeout(() => {
           spatial.compartments[d].isOpen = true;
           openedDays.add(d);
+          exploredDays.add(d);
           if (d % 6 === 1) audio.playSfx('crystal');
           if (d === 24) {
             spatial.triggerCuckoo(4.8);
@@ -325,7 +368,7 @@ function initSpatialApp() {
         }, (d - 1) * 45);
         cascadeTimers.push(t);
       }
-      showToast('✨ 全柜盛开：24 座立体木龛齐明！轻点任一内龛即可取出在掌心把玩', 3600);
+      showToast('✨ 全柜盛开：点内龛可取出把玩，点敞开的门扇可单独关门', 3600);
     }
   }
 
@@ -372,21 +415,21 @@ function initSpatialApp() {
 
   finderBtn.addEventListener('click', () => {
     audio.unlock();
-    if (focusDay) releaseHeldCurio();
-    let nextUnopened = null;
+    if (focusDay) releaseHeldCurio(true);
+    let nextUnexplored = null;
     for (let d = 1; d <= 24; d++) {
-      if (!openedDays.has(d)) {
-        nextUnopened = d;
+      if (!exploredDays.has(d)) {
+        nextUnexplored = d;
         break;
       }
     }
-    const target = nextUnopened || 24;
+    const target = nextUnexplored || 24;
     spatial.highlightDoor(target, 4.5);
     audio.playSfx('crystal');
     showToast(
-      nextUnopened
+      nextUnexplored
         ? `✨ 金色流萤已圈出第 ${target} 号（${ADVENT_BY_DAY[target].title}）位置`
-        : '🌟 全部 24 件奇珍已开启！轻点任意木龛即可取出把玩'
+        : '🌟 全部 24 件奇珍均已品鉴！轻点任意木门可随时取出把玩'
     );
   });
 
@@ -399,16 +442,16 @@ function initSpatialApp() {
 
   flipCurioBtn.addEventListener('click', () => {
     if (!focusDay) return;
-    // Toggle between front (multiples of 2π) and back (π)
     const norm = ((targetHeldYaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     const showingBack = norm > Math.PI * 0.5 && norm < Math.PI * 1.5;
     targetHeldYaw = showingBack ? 0 : Math.PI;
     targetHeldPitch = 0;
-    flipCurioBtn.textContent = showingBack ? '🔄 翻看背面铭牌' : '🔄 翻回正面奇观';
+    flipCurioBtn.textContent = showingBack ? '🔄 翻看背面' : '🔄 翻回正面';
     audio.playSfx('page');
   });
 
-  putBackBtn.addEventListener('click', releaseHeldCurio);
+  putBackCloseBtn.addEventListener('click', () => releaseHeldCurio(true));
+  putBackOpenBtn.addEventListener('click', () => releaseHeldCurio(false));
 
   prevCurioBtn.addEventListener('click', () => {
     if (!focusDay) return;
@@ -476,11 +519,11 @@ function initSpatialApp() {
 
       const norm = ((targetHeldYaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
       const showingBack = norm > Math.PI * 0.5 && norm < Math.PI * 1.5;
-      flipCurioBtn.textContent = showingBack ? '🔄 翻回正面奇观' : '🔄 翻看背面铭牌';
+      flipCurioBtn.textContent = showingBack ? '🔄 翻回正面' : '🔄 翻看背面';
     } else {
-      // Smooth 3D spatial parallax orbit around the Black Forest cabinet!
-      targetOrbitYaw = THREE.MathUtils.clamp(targetOrbitYaw - dx * 0.0042, -0.46, 0.46);
-      targetOrbitPitch = THREE.MathUtils.clamp(targetOrbitPitch + dy * 0.0032, -0.20, 0.24);
+      // Wide ±42° 3D spatial orbit around the 1m-deep Black Forest walnut cabinet!
+      targetOrbitYaw = THREE.MathUtils.clamp(targetOrbitYaw - dx * 0.0046, -0.72, 0.72);
+      targetOrbitPitch = THREE.MathUtils.clamp(targetOrbitPitch + dy * 0.0034, -0.22, 0.28);
     }
   });
 
@@ -499,7 +542,7 @@ function initSpatialApp() {
     const hits = raycaster.intersectObjects(spatial.interactiveMeshes, false);
 
     if (hits.length === 0) {
-      if (focusDay) releaseHeldCurio();
+      if (focusDay) releaseHeldCurio(true);
       return;
     }
 
@@ -517,15 +560,27 @@ function initSpatialApp() {
         if (ud.type === 'heldCurioBack') {
           targetHeldYaw = 0;
           targetHeldPitch = 0;
-          flipCurioBtn.textContent = '🔄 翻看背面铭牌';
+          flipCurioBtn.textContent = '🔄 翻看背面';
           audio.playSfx('page');
           return;
         }
       }
 
-      if (ud.type === 'door' || ud.type === 'nicheCurio') {
+      if (ud.type === 'door') {
         if (focusDay === ud.day) {
-          releaseHeldCurio();
+          releaseHeldCurio(true);
+        } else if (!focusDay && spatial.compartments[ud.day]?.isOpen) {
+          // Tapping an open 3D wooden door panel swings it smoothly SHUT!
+          closeSingleDoor(ud.day, true);
+        } else {
+          inspectAndHoldCurio(ud.day);
+        }
+        return;
+      }
+
+      if (ud.type === 'nicheCurio') {
+        if (focusDay === ud.day) {
+          releaseHeldCurio(true);
         } else {
           inspectAndHoldCurio(ud.day);
         }
@@ -565,9 +620,9 @@ function initSpatialApp() {
       }
     }
 
-    // Tapped cabinet background while holding a curio -> gently put curio back in its niche!
+    // Tapped cabinet background while holding a curio -> put curio back & close its door!
     if (focusDay) {
-      releaseHeldCurio();
+      releaseHeldCurio(true);
     }
   });
 

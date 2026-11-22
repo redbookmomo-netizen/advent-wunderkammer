@@ -240,3 +240,157 @@ export function buildEngravedBackplateTexture(info) {
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
+
+// 4. Rich Procedural Black Forest Coffered Walnut & Brass Side-Cabinet Wall Texture (512 x 1024)
+// Gives the 1-meter-deep 3D cabinet trunk unmistakable carved furniture volume when rotated!
+export function buildCabinetSideWoodTexture() {
+  const W = 512;
+  const H = 1024;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+
+  // Rich warm Black Forest walnut base
+  const bg = ctx.createLinearGradient(0, 0, W, 0);
+  bg.addColorStop(0, '#5a3018');
+  bg.addColorStop(0.18, '#472310');
+  bg.addColorStop(0.5, '#3b1c0c');
+  bg.addColorStop(0.85, '#2b1307');
+  bg.addColorStop(1, '#1f0d05');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Vertical burl wood grain streaks
+  for (let x = 4; x < W; x += 6) {
+    ctx.strokeStyle = x % 12 === 0 ? 'rgba(255, 182, 108, 0.065)' : 'rgba(18, 6, 2, 0.16)';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    for (let y = 0; y <= H; y += 64) {
+      ctx.lineTo(x + Math.sin(y * 0.018 + x * 0.07) * 5, y);
+    }
+    ctx.stroke();
+  }
+
+  // Outer carved stiles & brass border trim
+  ctx.strokeStyle = '#c89846';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(18, 18, W - 36, H - 36);
+  ctx.strokeStyle = 'rgba(255, 224, 150, 0.35)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(26, 26, W - 52, H - 52);
+
+  // Three recessed Baroque coffered panels with beveled brass frames & corner rosettes
+  const panels = [
+    [48, 52, W - 96, 265],
+    [48, 352, W - 96, 320],
+    [48, 706, W - 96, 266]
+  ];
+
+  for (const [px, py, pw, ph] of panels) {
+    // Deep recessed walnut shadow bevel
+    const pg = ctx.createRadialGradient(px + pw * 0.5, py + ph * 0.5, 20, px + pw * 0.5, py + ph * 0.5, pw * 0.72);
+    pg.addColorStop(0, '#582e16');
+    pg.addColorStop(0.7, '#35190a');
+    pg.addColorStop(1, '#1d0b04');
+    ctx.fillStyle = pg;
+    ctx.fillRect(px, py, pw, ph);
+
+    // Outer & inner gilded molding bevels
+    ctx.strokeStyle = '#dda955';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(px, py, pw, ph);
+
+    ctx.strokeStyle = '#8d5d22';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(px + 14, py + 14, pw - 28, ph - 28);
+
+    ctx.strokeStyle = 'rgba(255, 226, 158, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px + 20, py + 20, pw - 40, ph - 40);
+
+    // Corner gilded bosses
+    for (const [cx, cy] of [
+      [px + 14, py + 14],
+      [px + pw - 14, py + 14],
+      [px + 14, py + ph - 14],
+      [px + pw - 14, py + ph - 14]
+    ]) {
+      ctx.fillStyle = '#f2cb78';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Center Panel Ornate Brass Diamond Escutcheon
+  const mx = W * 0.5;
+  const my = 512;
+  ctx.fillStyle = '#d7a44e';
+  ctx.beginPath();
+  ctx.moveTo(mx, my - 46);
+  ctx.lineTo(mx + 38, my);
+  ctx.lineTo(mx, my + 46);
+  ctx.lineTo(mx - 38, my);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#fff0b8';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// 5. Frosted Alpine Cedar-Shingle & Snow-Drift Chalet Roof Texture (512 x 512)
+export function buildSnowRoofTexture() {
+  const W = 512;
+  const H = 512;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+
+  // Dark weathered alpine cedar shingles + frosted snow blanket near front eave
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#3a2214');
+  g.addColorStop(0.55, '#4b2d1b');
+  g.addColorStop(0.82, '#8b888c');
+  g.addColorStop(0.94, '#dce6f2');
+  g.addColorStop(1, '#f4f8ff');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Shingle rows
+  for (let y = 24; y < H * 0.86; y += 34) {
+    ctx.strokeStyle = 'rgba(18, 8, 3, 0.48)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+
+    const shift = (y / 34) % 2 === 0 ? 0 : 24;
+    for (let x = shift; x < W; x += 48) {
+      ctx.beginPath();
+      ctx.moveTo(x, y - 34);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+
+    // Frost dusting along shingle lips
+    ctx.strokeStyle = 'rgba(225, 238, 255, 0.24)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y - 2);
+    ctx.lineTo(W, y - 2);
+    ctx.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
