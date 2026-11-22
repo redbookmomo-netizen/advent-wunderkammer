@@ -7,13 +7,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="黑森林降临节秘柜" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#0b0910" />
+  <meta name="theme-color" content="#0d0806" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕰️</text></svg>" />
   <title>黑森林 24 格机械降临节秘柜 · The Grand Advent Wunderkammer</title>
-  <meta name="description" content="矗立于暴风雪冬夜窗前的 1884 年黑森林巴洛克胡桃木 24 格机械降临节奇珍柜：24 座独立 3D 微缩发条机关、顶阁布谷鸟与吹号天使报时台、松果重锤与八首古典八音管风琴圣咏。" />
+  <meta name="description" content="推开黑森林巴洛克胡桃木奇珍柜上 24 扇鎏金浮雕暗门，唤醒冰晶冬青玫瑰、星月轨仪、白鸮、蓝蝶温室、瓶中帆船、琉璃机械之心与平安夜金圣堂等 24 座动态微缩奇观。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://redbookmomo-netizen.github.io/advent-wunderkammer/" />
   <meta property="og:title" content="黑森林 24 格机械降临节秘柜 · The Grand Advent Wunderkammer" />
-  <meta property="og:description" content="推开 24 扇鎏金树瘤木暗门与丝绒抽屉，把玩 24 座动态 3D 微缩发条奇观，拉动黄铜松果重锤奏响平安夜报时大机关。" />
+  <meta property="og:description" content="实景巴洛克木雕奇珍柜 · 24 扇 3D 铰链浮雕金门与 24 座动态光影内龛奇观，配瑞士钢片音梳与双音布谷鸟报时。" />
   <meta property="og:image" content="https://redbookmomo-netizen.github.io/advent-wunderkammer/og-cover.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -21,21 +22,18 @@
   <style>
     :root {
       --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "Cormorant Garamond", "Baskerville", Georgia, serif;
-      --sans: "Optima", "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, sans-serif;
-
-      --brass: #e4bf70;
-      --brass-bright: #fae2a0;
-      --brass-border: rgba(228, 191, 112, 0.36);
-      --brass-subtle: rgba(228, 191, 112, 0.18);
-      --walnut-glass: rgba(20, 12, 9, 0.78);
-      --walnut-deep: rgba(14, 8, 6, 0.90);
-      --crimson-accent: #8e1b2e;
-      --parchment: #f4ead4;
-      --parchment-2: #e8d9b8;
-      --ink: #281a12;
-      --ink-soft: #5c4333;
-      --cream: #f7efe0;
-      --cream-muted: rgba(247, 239, 224, 0.72);
+      --brass: #e5c06e;
+      --brass-bright: #fce5a6;
+      --brass-border: rgba(229, 192, 110, 0.38);
+      --brass-subtle: rgba(229, 192, 110, 0.18);
+      --walnut-glass: rgba(20, 11, 7, 0.80);
+      --walnut-deep: rgba(15, 8, 5, 0.94);
+      --parchment: #f5ebd6;
+      --parchment-2: #e7d6b4;
+      --ink: #281910;
+      --ink-soft: #5e4331;
+      --cream: #f8f0e2;
+      --cream-muted: rgba(248, 240, 226, 0.72);
     }
 
     *, *::before, *::after {
@@ -49,11 +47,11 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      min-height: 620px;
+      min-height: 600px;
       height: 100dvh;
       overflow: hidden;
       overscroll-behavior: none;
-      background: #0b0910;
+      background: #0c0705;
       color: var(--cream);
       font-family: var(--serif);
       -webkit-font-smoothing: antialiased;
@@ -67,128 +65,365 @@
       cursor: pointer;
     }
 
-    #wunderkammer-canvas {
+    /* Warm blurred ambient bleed so no harsh black bars ever appear on any aspect ratio */
+    .ambient-bleed {
       position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      touch-action: none;
-      cursor: grab;
-      z-index: 1;
+      inset: -36px;
+      background: url("assets/cabinet.jpg") center center / cover no-repeat;
+      filter: blur(28px) brightness(0.34) saturate(1.15);
+      transform: scale(1.08);
+      pointer-events: none;
+      z-index: 0;
     }
 
-    #wunderkammer-canvas:active {
+    /* ==================== INTERACTIVE CABINET VIEWPORT ==================== */
+    #viewport-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    #viewport-wrap:active {
       cursor: grabbing;
     }
 
-    .viewport-vignette {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 2;
-      background: radial-gradient(ellipse 88% 84% at 50% 48%, rgba(10, 7, 12, 0) 56%, rgba(6, 4, 8, 0.56) 100%);
+    #cabinet-pan-layer {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      will-change: transform;
+      transform-origin: center center;
     }
 
-    /* ==================== TOP HEADER ==================== */
-    .top-hud {
+    /* Locked 1086 : 1448 coordinate stage */
+    #cabinet-stage {
+      position: relative;
+      aspect-ratio: 1086 / 1448;
+      height: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(74px, env(safe-area-inset-bottom)));
+      width: auto;
+      max-height: 94dvh;
+      box-shadow: 0 20px 64px rgba(0, 0, 0, 0.85);
+      border-radius: 6px;
+    }
+
+    /* Portrait mobile heroic framing: cabinet fills the full phone width */
+    @media (max-aspect-ratio: 3/4) {
+      #cabinet-stage {
+        width: 115vw;
+        height: auto;
+        max-height: none;
+        margin-bottom: 42px;
+      }
+    }
+
+    .cabinet-base-img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      pointer-events: none;
+      border-radius: 6px;
+    }
+
+    #ambient-fx-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    /* ==================== 24 RECESSED NICHES & 3D HINGED DOORS ==================== */
+    #doors-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+    }
+
+    .cabinet-door-slot {
+      position: absolute;
+      perspective: 820px;
+      -webkit-perspective: 820px;
+      cursor: pointer;
+    }
+
+    /* Recessed dark mahogany interior framing the revealed artwork */
+    .niche-interior {
+      position: absolute;
+      inset: 1.5%;
+      overflow: hidden;
+      background: #140905;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+      box-shadow:
+        inset 0 4px 14px rgba(0, 0, 0, 0.95),
+        inset 0 0 12px rgba(255, 188, 92, 0.35);
+    }
+
+    .cabinet-door-slot.is-open .niche-interior,
+    .cabinet-door-slot.is-opening .niche-interior {
+      opacity: 1;
+    }
+
+    .niche-interior img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      filter: brightness(0.96) contrast(1.04);
+      transition: transform 0.45s ease, filter 0.35s ease;
+    }
+
+    .cabinet-door-slot.is-open:hover .niche-interior img {
+      transform: scale(1.06);
+      filter: brightness(1.08) contrast(1.05);
+    }
+
+    /* Warm inner Rim Glow inside open niche */
+    .niche-interior::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow:
+        inset 0 3px 12px rgba(0, 0, 0, 0.92),
+        inset 0 0 14px rgba(255, 196, 98, 0.42);
+      border: 1px solid rgba(229, 192, 110, 0.34);
+      border-radius: inherit;
+    }
+
+    /* 3D Swinging Carved Relief Door Leaf */
+    .door-leaf {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      transition: transform 0.62s cubic-bezier(0.24, 1.08, 0.36, 1), filter 0.35s ease;
+      will-change: transform;
+      z-index: 3;
+    }
+
+    .door-leaf.single-leaf {
+      left: 0;
+      width: 100%;
+    }
+
+    .door-leaf.hinge-left {
+      transform-origin: 2% 50%;
+    }
+
+    .door-leaf.hinge-right {
+      transform-origin: 98% 50%;
+    }
+
+    .door-leaf.double-left {
+      left: 0;
+      width: 50%;
+      transform-origin: 3% 50%;
+    }
+
+    .door-leaf.double-right {
+      left: 50%;
+      width: 50%;
+      transform-origin: 97% 50%;
+    }
+
+    .cabinet-door-slot:not(.is-open):hover .leaf-front {
+      filter: brightness(1.12);
+    }
+
+    .cabinet-door-slot.is-open .door-leaf.hinge-left {
+      transform: rotateY(-116deg);
+    }
+
+    .cabinet-door-slot.is-open .door-leaf.hinge-right {
+      transform: rotateY(116deg);
+    }
+
+    .cabinet-door-slot.is-open .door-leaf.double-left {
+      transform: rotateY(-118deg);
+    }
+
+    .cabinet-door-slot.is-open .door-leaf.double-right {
+      transform: rotateY(118deg);
+    }
+
+    .leaf-front,
+    .leaf-back {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .leaf-front img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: fill;
+      pointer-events: none;
+    }
+
+    /* Aged Black Forest Walnut & Brass Inner Back-Face when swung open past 90° */
+    .leaf-back {
+      transform: rotateY(180deg);
+      background:
+        radial-gradient(circle at 50% 45%, rgba(86, 44, 24, 0.98), rgba(32, 14, 7, 0.99) 80%);
+      border: 1.5px solid rgba(226, 184, 96, 0.65);
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.88), 0 6px 14px rgba(0, 0, 0, 0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(242, 206, 128, 0.72);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
+
+    /* ==================== NATIVE PAINTED HOTSPOTS & BRASS SWITCHES ==================== */
+    .painted-hotspot {
+      position: absolute;
+      z-index: 7;
+      cursor: pointer;
+    }
+
+    /* Overlay sliding brass toggle pills inside the two roof plaques */
+    .switch-slot-track {
+      position: absolute;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #1b0e07, #2f1a0d);
+      box-shadow: inset 0 1.5px 4px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(235, 195, 105, 0.55);
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .switch-slot-track.active {
+      background: linear-gradient(180deg, #4f2214, #7c3518);
+      box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.7), 0 0 8px rgba(255, 205, 105, 0.65);
+    }
+
+    .switch-brass-pill {
+      position: absolute;
+      top: 10%;
+      left: 7%;
+      width: 52%;
+      height: 80%;
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 30%, #fff0b8, #d6a246 62%, #8a5c1a 100%);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+      transition: transform 0.24s cubic-bezier(0.25, 1.2, 0.4, 1);
+    }
+
+    .switch-slot-track.active .switch-brass-pill {
+      transform: translateX(74%);
+    }
+
+    /* Animated Cuckoo Bird Sprite & Hanging Pinecones */
+    #cuckoo-sprite {
+      position: absolute;
+      left: 47.97%;
+      top: 6.84%;
+      width: 5.06%;
+      height: 4.42%;
+      z-index: 5;
+      pointer-events: auto;
+      cursor: pointer;
+      transform-origin: 50% 90%;
+      transition: transform 0.32s cubic-bezier(0.22, 1.35, 0.36, 1), filter 0.3s ease;
+    }
+
+    #cuckoo-sprite.singing {
+      transform: scale(1.22) translateY(-6%);
+      filter: brightness(1.22) drop-shadow(0 4px 10px rgba(255, 215, 120, 0.75));
+    }
+
+    .pinecone-hotspot {
+      transition: transform 0.25s ease;
+    }
+
+    /* ==================== MINIMAL TOP BAR ==================== */
+    .top-bar {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
-      z-index: 10;
+      z-index: 15;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left));
-      background: linear-gradient(180deg, rgba(10, 6, 8, 0.82) 0%, rgba(10, 6, 8, 0.36) 68%, rgba(10, 6, 8, 0) 100%);
+      gap: 8px;
+      padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+      background: linear-gradient(180deg, rgba(10, 5, 3, 0.82) 0%, rgba(10, 5, 3, 0) 100%);
       pointer-events: none;
     }
 
-    .brand-block {
+    .title-chip {
       pointer-events: auto;
-    }
-
-    .brand-block h1 {
-      margin: 0;
-      font-size: clamp(16px, 2.3vw, 22px);
+      font-size: clamp(14px, 3.6vw, 18.5px);
       font-weight: 600;
       letter-spacing: 0.08em;
       color: var(--brass-bright);
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
-      line-height: 1.25;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.92);
+      white-space: nowrap;
+      margin: 0;
     }
 
-    .brand-sub {
-      margin: 2px 0 0;
-      font-size: clamp(11px, 1.3vw, 12.5px);
-      letter-spacing: 0.06em;
-      color: var(--cream-muted);
-      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
-    }
-
-    .top-actions {
+    .top-pills {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
+      align-items: center;
       gap: 6px;
       pointer-events: auto;
     }
 
-    .brass-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 6px 11px;
+    .hud-pill {
+      padding: 5px 10px;
       border-radius: 999px;
       border: 1px solid var(--brass-border);
       background: var(--walnut-glass);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       color: var(--cream);
-      font-size: 12px;
-      letter-spacing: 0.04em;
-      transition: transform 0.16s ease, border-color 0.2s ease, background 0.2s ease;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.42);
+      font-size: 11.5px;
+      letter-spacing: 0.03em;
       white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
     }
 
-    .brass-btn:hover {
-      border-color: var(--brass);
-      background: rgba(36, 20, 14, 0.88);
-    }
-
-    .brass-btn:active {
-      transform: scale(0.96);
-    }
-
-    .brass-btn.active-gold {
-      background: linear-gradient(135deg, rgba(142, 27, 46, 0.85), rgba(64, 24, 18, 0.9));
+    .hud-pill.active-mode {
       border-color: var(--brass-bright);
+      background: linear-gradient(135deg, rgba(138, 28, 42, 0.86), rgba(58, 24, 14, 0.92));
       color: var(--brass-bright);
     }
 
-    /* ==================== TOAST BANNER ==================== */
+    /* ==================== FLOATING TOAST ==================== */
     .toast-banner {
       position: fixed;
-      top: calc(max(12px, env(safe-area-inset-top)) + 56px);
+      top: calc(max(10px, env(safe-area-inset-top)) + 44px);
       left: 50%;
       transform: translateX(-50%) translateY(-8px);
-      z-index: 25;
-      padding: 7px 16px;
+      z-index: 40;
+      padding: 7px 15px;
       border-radius: 999px;
-      background: rgba(20, 11, 8, 0.9);
+      background: rgba(18, 9, 5, 0.92);
       border: 1px solid var(--brass);
       color: var(--brass-bright);
-      font-size: 12.5px;
-      letter-spacing: 0.05em;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.7);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.28s ease, transform 0.28s ease;
-      white-space: nowrap;
+      transition: opacity 0.25s ease, transform 0.25s ease;
       max-width: 92vw;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -198,122 +433,111 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* ==================== BOTTOM FULL-CABINET DOCK ==================== */
+    /* ==================== BOTTOM CONTROL DOCK ==================== */
     .bottom-dock {
       position: fixed;
       left: 50%;
-      bottom: max(10px, env(safe-area-inset-bottom));
+      bottom: max(8px, env(safe-area-inset-bottom));
       transform: translateX(-50%);
-      z-index: 12;
-      width: min(560px, calc(100vw - 20px));
+      z-index: 16;
+      width: min(540px, calc(100vw - 16px));
       display: flex;
       flex-direction: column;
-      gap: 7px;
-      padding: 9px 12px;
-      border-radius: 16px;
+      gap: 6px;
+      padding: 8px 11px;
+      border-radius: 15px;
       background: var(--walnut-glass);
       border: 1px solid var(--brass-border);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.58);
-      transition: opacity 0.28s ease, transform 0.28s ease;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.68);
     }
 
-    .bottom-dock.hidden {
-      opacity: 0;
-      pointer-events: none;
-      transform: translateX(-50%) translateY(18px);
-    }
-
-    .music-row {
+    .music-strip {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      padding-bottom: 6px;
+      gap: 7px;
+      padding-bottom: 5px;
       border-bottom: 1px solid var(--brass-subtle);
     }
 
-    .play-pill {
-      padding: 5px 11px;
+    .play-btn {
+      padding: 4.5px 11px;
       border-radius: 999px;
       border: 1px solid var(--brass);
-      background: linear-gradient(180deg, rgba(66, 38, 22, 0.92), rgba(35, 19, 11, 0.95));
+      background: linear-gradient(180deg, #4b2916, #281409);
       color: var(--brass-bright);
-      font-size: 12px;
-      letter-spacing: 0.05em;
+      font-size: 11.5px;
       white-space: nowrap;
     }
 
-    .track-selector-btn {
+    .track-title-btn {
       flex: 1;
       min-width: 0;
       background: transparent;
       border: none;
       color: var(--cream);
-      font-size: 12.5px;
+      font-size: 12px;
       text-align: left;
-      padding: 2px 6px;
+      padding: 2px 4px;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
-      letter-spacing: 0.03em;
     }
 
-    .track-selector-btn span {
+    .track-title-btn span {
       color: var(--cream-muted);
-      font-size: 11.5px;
+      font-size: 11px;
     }
 
-    .icon-mini-btn {
+    .mini-pill {
       padding: 4px 9px;
       border-radius: 999px;
       border: 1px solid var(--brass-border);
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--cream);
-      font-size: 11.5px;
+      font-size: 11px;
       white-space: nowrap;
     }
 
-    .dock-actions {
+    .action-strip {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 7px;
+      gap: 6px;
     }
 
-    .dock-action-btn {
-      padding: 6px 8px;
-      border-radius: 10px;
+    .dock-btn {
+      padding: 5.5px 6px;
+      border-radius: 9px;
       border: 1px solid var(--brass-subtle);
       background: rgba(255, 255, 255, 0.04);
       color: var(--cream);
-      font-size: 12px;
-      letter-spacing: 0.03em;
+      font-size: 11.5px;
       text-align: center;
-      transition: background 0.18s ease, border-color 0.18s ease;
       white-space: nowrap;
     }
 
-    .dock-action-btn:hover {
-      background: rgba(228, 191, 112, 0.14);
+    .dock-btn:hover {
+      background: rgba(229, 192, 110, 0.14);
       border-color: var(--brass);
     }
 
-    /* ==================== REPERTOIRE POPUP MODAL ==================== */
+    /* ==================== REPERTOIRE POPUP SHEET ==================== */
     .repertoire-sheet {
       position: fixed;
       left: 50%;
-      bottom: calc(max(12px, env(safe-area-inset-bottom)) + 96px);
+      bottom: calc(max(10px, env(safe-area-inset-bottom)) + 88px);
       transform: translateX(-50%) translateY(12px);
-      z-index: 22;
-      width: min(440px, calc(100vw - 24px));
-      max-height: 54dvh;
+      z-index: 25;
+      width: min(440px, calc(100vw - 20px));
+      max-height: 52dvh;
       overflow-y: auto;
       padding: 12px;
       border-radius: 16px;
       background: var(--walnut-deep);
       border: 1px solid var(--brass);
-      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.78);
+      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.85);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.22s ease, transform 0.22s ease;
@@ -325,19 +549,18 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    .sheet-header {
+    .sheet-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding-bottom: 8px;
       margin-bottom: 8px;
       border-bottom: 1px solid var(--brass-subtle);
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--brass-bright);
-      letter-spacing: 0.06em;
     }
 
-    .track-item {
+    .track-row {
       width: 100%;
       display: flex;
       align-items: center;
@@ -353,153 +576,213 @@
       font-size: 12.5px;
     }
 
-    .track-item:hover {
-      background: rgba(228, 191, 112, 0.11);
-    }
-
-    .track-item.current {
+    .track-row.current {
       border-color: var(--brass);
-      background: rgba(142, 27, 46, 0.42);
+      background: rgba(138, 28, 42, 0.44);
       color: var(--brass-bright);
     }
 
-    .track-item small {
+    .track-row small {
       color: var(--cream-muted);
       font-size: 11px;
     }
 
-    /* ==================== CURIO INSPECTOR & LORE CARD ==================== */
-    .curio-inspector {
+    /* ==================== FULL-RES LIVING DIORAMA VITRINE MODAL ==================== */
+    .vitrine-overlay {
       position: fixed;
-      left: 50%;
-      bottom: max(10px, env(safe-area-inset-bottom));
-      transform: translateX(-50%) translateY(24px);
-      z-index: 18;
-      width: min(500px, calc(100vw - 20px));
-      padding: 13px 15px;
-      border-radius: 18px;
-      background: var(--walnut-deep);
-      border: 1px solid var(--brass);
-      box-shadow: 0 14px 42px rgba(0, 0, 0, 0.76);
+      inset: 0;
+      z-index: 30;
+      background: rgba(7, 4, 3, 0.84);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.28s ease, transform 0.28s ease;
+      transition: opacity 0.28s ease;
     }
 
-    .curio-inspector.visible {
+    .vitrine-overlay.open {
       opacity: 1;
       pointer-events: auto;
-      transform: translateX(-50%) translateY(0);
     }
 
-    .inspector-top {
+    .vitrine-card {
+      width: min(460px, 100%);
+      max-height: 100%;
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
+      flex-direction: column;
+      border-radius: 20px;
+      background: var(--walnut-deep);
+      border: 1.5px solid var(--brass);
+      box-shadow: 0 22px 68px rgba(0, 0, 0, 0.92), 0 0 28px rgba(229, 192, 110, 0.16);
+      overflow: hidden;
+      transform: scale(0.93) translateY(14px);
+      transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    .day-badge {
-      display: inline-block;
-      padding: 2px 8px;
+    .vitrine-overlay.open .vitrine-card {
+      transform: scale(1) translateY(0);
+    }
+
+    /* High-Res 3:4 Living Artwork Frame */
+    .vitrine-art-frame {
+      position: relative;
+      width: 100%;
+      flex: 1 1 auto;
+      min-height: 240px;
+      max-height: 54dvh;
+      background: #0d0604;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--brass-border);
+      touch-action: none;
+      cursor: pointer;
+    }
+
+    .vitrine-stage-inner {
+      position: relative;
+      height: 100%;
+      aspect-ratio: 3 / 4;
+      max-width: 100%;
+      box-shadow: 0 0 36px rgba(0, 0, 0, 0.9);
+    }
+
+    #vitrine-img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+    }
+
+    #vitrine-fx-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .vitrine-close-floating {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 4;
+      padding: 5px 12px;
       border-radius: 999px;
-      background: rgba(142, 27, 46, 0.72);
+      border: 1px solid var(--brass);
+      background: rgba(16, 8, 5, 0.82);
+      backdrop-filter: blur(8px);
+      color: var(--brass-bright);
+      font-size: 12px;
+    }
+
+    .vitrine-day-pill {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 4;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(138, 28, 42, 0.85);
       border: 1px solid var(--brass);
       color: var(--brass-bright);
-      font-size: 11px;
+      font-size: 11.5px;
       letter-spacing: 0.08em;
-      margin-bottom: 4px;
     }
 
-    .curio-title {
+    /* Info & Lore Body below artwork */
+    .vitrine-info {
+      padding: 12px 15px 13px;
+      flex-shrink: 0;
+    }
+
+    .vitrine-title {
       margin: 0;
-      font-size: 17px;
+      font-size: 17.5px;
       font-weight: 600;
       color: var(--brass-bright);
       letter-spacing: 0.05em;
     }
 
-    .curio-german {
-      margin: 2px 0 0;
+    .vitrine-subtitle {
+      margin: 2px 0 6px;
       font-size: 11.5px;
-      font-style: italic;
       color: var(--cream-muted);
+      font-style: italic;
     }
 
-    .close-Zoom-btn {
-      padding: 5px 11px;
-      border-radius: 999px;
-      border: 1px solid var(--brass-border);
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--cream);
-      font-size: 12px;
-      white-space: nowrap;
-    }
-
-    .curio-summary {
-      margin: 8px 0 10px;
-      font-size: 13px;
-      line-height: 1.55;
+    .vitrine-summary {
+      margin: 0 0 9px;
+      font-size: 12.8px;
+      line-height: 1.52;
       color: var(--cream);
     }
 
-    /* Expandable Antique Parchment Lore Slip */
-    .lore-parchment {
+    .lore-box {
       display: none;
-      margin: 0 0 10px;
-      padding: 11px 13px;
+      margin: 0 0 9px;
+      padding: 10px 12px;
       border-radius: 10px;
       background: linear-gradient(165deg, var(--parchment), var(--parchment-2));
       border: 1px solid #c5a467;
       color: var(--ink);
-      font-size: 12.8px;
-      line-height: 1.68;
-      max-height: 24dvh;
+      font-size: 12.5px;
+      line-height: 1.64;
+      max-height: 18dvh;
       overflow-y: auto;
-      box-shadow: inset 0 0 18px rgba(128, 86, 32, 0.18);
+      box-shadow: inset 0 0 16px rgba(128, 86, 32, 0.16);
     }
 
-    .lore-parchment.open {
+    .lore-box.open {
       display: block;
     }
 
-    .lore-parchment strong {
+    .lore-box strong {
       display: block;
-      font-size: 11.5px;
-      letter-spacing: 0.08em;
+      font-size: 11px;
       color: var(--ink-soft);
-      margin-bottom: 4px;
+      letter-spacing: 0.06em;
+      margin-bottom: 3px;
     }
 
-    .inspector-buttons {
+    .vitrine-btns {
       display: flex;
       gap: 8px;
       margin-bottom: 9px;
     }
 
-    .trigger-toy-btn {
+    .vitrine-primary-btn {
       flex: 1.35;
-      padding: 8px 12px;
+      padding: 8px 10px;
       border-radius: 10px;
       border: 1px solid var(--brass-bright);
-      background: linear-gradient(135deg, #8e1b2e, #59111d);
+      background: linear-gradient(135deg, #8e1b2e, #540f1b);
       color: var(--brass-bright);
       font-size: 12.5px;
       font-weight: 600;
-      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .lore-btn {
+    .vitrine-secondary-btn {
       flex: 1;
       padding: 8px 10px;
       border-radius: 10px;
       border: 1px solid var(--brass-border);
-      background: rgba(228, 191, 112, 0.12);
+      background: rgba(229, 192, 110, 0.12);
       color: var(--cream);
-      font-size: 12.5px;
+      font-size: 12px;
+      white-space: nowrap;
     }
 
-    .inspector-nav {
+    .vitrine-nav-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -508,123 +791,149 @@
       border-top: 1px solid var(--brass-subtle);
     }
 
-    .nav-step-btn {
-      padding: 5px 11px;
+    .nav-btn {
+      padding: 5px 12px;
       border-radius: 8px;
       border: 1px solid var(--brass-subtle);
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--cream);
       font-size: 12px;
-    }
-
-    @media (max-width: 560px) {
-      .top-hud {
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-      }
-      .brand-block h1 {
-        font-size: 16.5px;
-        white-space: nowrap;
-        text-align: center;
-      }
-      .brand-sub {
-        display: none;
-      }
-      .top-actions {
-        justify-content: center;
-        flex-wrap: nowrap;
-        gap: 5px;
-      }
-      .brass-btn {
-        padding: 4.5px 9px;
-        font-size: 11.5px;
-      }
-      .dock-action-btn {
-        font-size: 11.5px;
-        padding: 6px 4px;
-      }
     }
   </style>
 </head>
 <body>
-  <canvas id="wunderkammer-canvas" aria-label="黑森林 24 格机械降临节秘柜 3D 交互舞台"></canvas>
-  <div class="viewport-vignette"></div>
+  <div class="ambient-bleed" aria-hidden="true"></div>
 
-  <!-- Top Editorial Header -->
-  <header class="top-hud">
-    <div class="brand-block">
-      <h1>黑森林机械降临节秘柜</h1>
-      <p class="brand-sub">Der Schwarzwald-Adventsschrank · No. 24 Uhrmachergasse · 1884</p>
-    </div>
-    <div class="top-actions">
-      <button id="mode-btn" type="button" class="brass-btn active-gold" title="切换全开把玩模式或真实十二月降临节日历锁">
-        🗝️ 全开把玩
+  <!-- Minimal Top Header -->
+  <header class="top-bar">
+    <h1 class="title-chip">黑森林机械降临节秘柜</h1>
+    <div class="top-pills">
+      <button id="hud-date-btn" type="button" class="hud-pill active-mode" title="切换全开把玩或真实日期解锁">
+        🗝️ 自由把玩
       </button>
-      <button id="atmo-btn" type="button" class="brass-btn" title="切换冬夜光影氛围">
-        🔥 炉火雪夜
+      <button id="hud-reset-view-btn" type="button" class="hud-pill" style="display:none;" title="复位缩放视角">
+        🔍 复位视角
       </button>
-      <button id="mute-btn" type="button" class="brass-btn" title="开启或静音八音声效">
+      <button id="hud-mute-btn" type="button" class="hud-pill" title="声音开关">
         🔊 声效
       </button>
     </div>
   </header>
 
-  <!-- Floating Toast Feedback -->
   <div id="toast-banner" class="toast-banner" role="status" aria-live="polite"></div>
 
-  <!-- Repertoire Selection Sheet -->
-  <aside id="repertoire-sheet" class="repertoire-sheet" aria-label="内置古典曲目单">
-    <div class="sheet-header">
-      <span>🎼 瑞士钢片音梳与木管风琴 · 八首精选曲目</span>
-      <button id="close-sheet-btn" type="button" class="icon-mini-btn">收起</button>
+  <!-- Main Pannable/Zoomable Living Cabinet Stage -->
+  <main id="viewport-wrap">
+    <div id="cabinet-pan-layer">
+      <div id="cabinet-stage">
+        <picture>
+          <source srcset="assets/cabinet.webp" type="image/webp" />
+          <img src="assets/cabinet.jpg" alt="The Grand Advent Wunderkammer 黑森林机械降临节秘柜" class="cabinet-base-img" />
+        </picture>
+
+        <!-- Animated Cuckoo Bird in Top Niche -->
+        <img id="cuckoo-sprite" src="assets/fronts/cuckoo.webp" alt="报时布谷鸟" title="点击唤醒布谷鸟报时" />
+
+        <!-- 24 Recessed Niches + 3D Perspective Hinged Carved Doors -->
+        <div id="doors-layer"></div>
+
+        <!-- Living Parlor Snow, Hearth Fire, Clock Sweep Hand & Fairy Lights -->
+        <canvas id="ambient-fx-canvas"></canvas>
+
+        <!-- Native Painted Roof Plaque Switch 1: Follow Real Date / Daily Unlock -->
+        <div id="roof-switch-date" class="painted-hotspot"
+             style="left:65.75%; top:14.78%; width:19.15%; height:3.59%;"
+             title="Follow Real Date · 切换真实十二月降临节日历锁">
+          <div id="track-date" class="switch-slot-track"
+               style="left:72.2%; top:29.5%; width:20.6%; height:41%;">
+            <div class="switch-brass-pill"></div>
+          </div>
+        </div>
+
+        <!-- Native Painted Roof Plaque Switch 2: Keeper's Open-All Mode -->
+        <div id="roof-switch-openall" class="painted-hotspot"
+             style="left:66.85%; top:19.06%; width:17.86%; height:3.59%;"
+             title="Keeper's Open-All Mode · 一键推开或合拢全部 24 扇浮雕金门">
+          <div id="track-openall" class="switch-slot-track"
+               style="left:71.2%; top:29.5%; width:22.0%; height:41%;">
+            <div class="switch-brass-pill"></div>
+          </div>
+        </div>
+
+        <!-- Clock Dial Hotspot -->
+        <div id="clock-hotspot" class="painted-hotspot"
+             style="left:43.55%; top:11.95%; width:13.44%; height:10.08%; border-radius:50%;"
+             title="轻触古董罗马钟盘敲响报时"></div>
+
+        <!-- Left & Right Hanging Pinecone Weights -->
+        <div id="pinecone-left" class="painted-hotspot pinecone-hotspot"
+             style="left:10.6%; top:41.8%; width:5.8%; height:14.2%;"
+             title="拉动左侧松果重锤上弦"></div>
+        <div id="pinecone-right" class="painted-hotspot pinecone-hotspot"
+             style="left:76.0%; top:42.4%; width:5.8%; height:14.2%;"
+             title="拉动右侧松果重锤上弦"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 8-Piece Repertoire Sheet -->
+  <aside id="repertoire-sheet" class="repertoire-sheet" aria-label="八音曲目单">
+    <div class="sheet-head">
+      <span>🎼 瑞士钢片音梳与木管风琴 · 八首精选名曲</span>
+      <button id="close-sheet-btn" type="button" class="mini-pill">收起</button>
     </div>
     <div id="track-list"></div>
   </aside>
 
-  <!-- Bottom Full-Cabinet Control Dock -->
-  <nav id="bottom-dock" class="bottom-dock" aria-label="秘柜主控台">
-    <div class="music-row">
-      <button id="play-btn" type="button" class="play-pill">▶ 八音奏鸣</button>
-      <button id="open-sheet-btn" type="button" class="track-selector-btn" title="点击展开八首曲目单">
+  <!-- Bottom Music & Quick-Action Dock -->
+  <nav id="bottom-dock" class="bottom-dock" aria-label="秘柜主控栏">
+    <div class="music-strip">
+      <button id="play-btn" type="button" class="play-btn">▶ 八音奏鸣</button>
+      <button id="open-sheet-btn" type="button" class="track-title-btn">
         ♪ <strong id="current-track-title">糖梅仙子之舞</strong> <span id="current-track-idx">(1/8 · 选曲 ▾)</span>
       </button>
-      <button id="next-track-btn" type="button" class="icon-mini-btn" title="切换下一首">⏭ 换曲</button>
+      <button id="next-track-btn" type="button" class="mini-pill">⏭ 换曲</button>
     </div>
-    <div class="dock-actions">
-      <button id="finder-btn" type="button" class="dock-action-btn">✨ 寻门 <span id="progress-count">0/24</span></button>
-      <button id="finale-btn" type="button" class="dock-action-btn">🔔 报时大机关</button>
-      <button id="all-doors-btn" type="button" class="dock-action-btn">🚪 全柜盛开</button>
+    <div class="action-strip">
+      <button id="finder-btn" type="button" class="dock-btn">✨ 寻门 <span id="progress-count">0/24</span></button>
+      <button id="cuckoo-btn" type="button" class="dock-btn">🔔 布谷报时</button>
+      <button id="all-doors-btn" type="button" class="dock-btn">🚪 全柜盛开</button>
     </div>
   </nav>
 
-  <!-- Close-up Curio Inspector & Lore Card -->
-  <section id="curio-inspector" class="curio-inspector" aria-label="奇珍龛特写详情">
-    <div class="inspector-top">
-      <div>
-        <span id="curio-badge" class="day-badge">No. 01 · I</span>
-        <h2 id="curio-title" class="curio-title">钟罩冰晶冬青玫瑰</h2>
-        <p id="curio-german" class="curio-german">Die Kristallrose unter Glas</p>
+  <!-- Full-Resolution 768x1024 Living Diorama Vitrine Modal -->
+  <section id="vitrine-overlay" class="vitrine-overlay" aria-label="奇珍内龛动态特写">
+    <div class="vitrine-card">
+      <div id="vitrine-art-frame" class="vitrine-art-frame" title="轻触或滑动画面洒下星尘微光">
+        <span id="vitrine-badge" class="vitrine-day-pill">No. 01 · I</span>
+        <button id="vitrine-close-btn" type="button" class="vitrine-close-floating">✕ 退回秘柜</button>
+        <div class="vitrine-stage-inner">
+          <img id="vitrine-img" src="assets/doors/door-01.webp" alt="奇珍内龛插画" />
+          <canvas id="vitrine-fx-canvas"></canvas>
+        </div>
       </div>
-      <button id="zoom-out-btn" type="button" class="close-Zoom-btn">✕ 退回全柜</button>
-    </div>
 
-    <p id="curio-summary" class="curio-summary"></p>
+      <div class="vitrine-info">
+        <h2 id="vitrine-title" class="vitrine-title">钟罩冰晶冬青玫瑰</h2>
+        <p id="vitrine-subtitle" class="vitrine-subtitle">Crystal Holly Rose · 欧泊霜玫</p>
+        <p id="vitrine-summary" class="vitrine-summary"></p>
 
-    <div id="lore-parchment" class="lore-parchment">
-      <strong>📜 《黑森林守柜人冬夜手记》</strong>
-      <div id="lore-text"></div>
-    </div>
+        <div id="lore-box" class="lore-box">
+          <strong>📜 《黑森林守柜人冬夜博物手记》</strong>
+          <div id="lore-text"></div>
+        </div>
 
-    <div class="inspector-buttons">
-      <button id="curio-action-btn" type="button" class="trigger-toy-btn">✨ 拨动机关</button>
-      <button id="lore-toggle-btn" type="button" class="lore-btn">📜 展开守柜人手记</button>
-    </div>
+        <div class="vitrine-btns">
+          <button id="vitrine-action-btn" type="button" class="vitrine-primary-btn">✨ 唤醒机关</button>
+          <button id="vitrine-lore-btn" type="button" class="vitrine-secondary-btn">📜 守柜人手记</button>
+        </div>
 
-    <div class="inspector-nav">
-      <button id="prev-day-btn" type="button" class="nav-step-btn">◀ 上一格</button>
-      <button id="shut-door-btn" type="button" class="nav-step-btn">合上此门</button>
-      <button id="next-day-btn" type="button" class="nav-step-btn">下一格 ▶</button>
+        <div class="vitrine-nav-row">
+          <button id="prev-day-btn" type="button" class="nav-btn">◀ 上一格</button>
+          <button id="shut-door-btn" type="button" class="nav-btn">合上此门</button>
+          <button id="next-day-btn" type="button" class="nav-btn">下一格 ▶</button>
+        </div>
+      </div>
     </div>
   </section>
 

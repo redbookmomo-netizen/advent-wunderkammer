@@ -343,6 +343,20 @@ export class WunderkammerAudio {
         this._clickTransient(now + 0.08, 1250, 0.08);
         break;
       }
+      case 'switchClick': {
+        this._clickTransient(now, 2350, 0.11);
+        this._clickTransient(now + 0.032, 1650, 0.08);
+        break;
+      }
+      case 'heartbeat': {
+        // Warm low ruby resonance lub-dub + escapement ticks
+        this._woodPipe(now, 98, 0.16, 0.22);
+        this._woodPipe(now + 0.22, 82.4, 0.24, 0.20);
+        this._clickTransient(now + 0.02, 2600, 0.06);
+        this._clickTransient(now + 0.24, 2200, 0.06);
+        this._voiceNote(76, now + 0.28, 0.7, 0.45, 'tine', 0);
+        break;
+      }
       case 'ratchet': {
         for (let i = 0; i < 6; i++) {
           this._clickTransient(now + i * 0.048, 1750 + i * 90, 0.085);
