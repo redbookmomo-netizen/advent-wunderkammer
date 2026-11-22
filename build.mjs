@@ -5,25 +5,29 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
-const result = await esbuild.build({
-  entryPoints: [path.join(root, 'src/main.js')],
-  bundle: true,
-  minify: true,
-  format: 'iife',
-  target: ['es2020'],
-  write: false
-});
+async function bundleEdition(entryRel, templateRel, outRel, label) {
+  const result = await esbuild.build({
+    entryPoints: [path.join(root, entryRel)],
+    bundle: true,
+    minify: true,
+    format: 'iife',
+    target: ['es2020'],
+    write: false
+  });
 
-const jsCode = result.outputFiles[0].text;
-const template = fs.readFileSync(path.join(root, 'src/template.html'), 'utf8');
+  const jsCode = result.outputFiles[0].text;
+  const template = fs.readFileSync(path.join(root, templateRel), 'utf8');
+  const safeJs = jsCode.replace(/<\/script>/gi, '<\\/script>');
+  const finalHtml = template.replace(
+    '<!-- BUNDLE_SCRIPT_PLACEHOLDER -->',
+    () => `<script>\n${safeJs}\n</script>`
+  );
 
-const safeJs = jsCode.replace(/<\/script>/gi, '<\\/script>');
-const finalHtml = template.replace(
-  '<!-- BUNDLE_SCRIPT_PLACEHOLDER -->',
-  () => `<script>\n${safeJs}\n</script>`
-);
+  const outPath = path.join(root, outRel);
+  fs.writeFileSync(outPath, finalHtml, 'utf8');
+  console.log(`Built ${label}: ${outPath} (${(finalHtml.length / 1024).toFixed(1)} KB)`);
+}
 
-const outPath = path.join(root, 'index.html');
-fs.writeFileSync(outPath, finalHtml, 'utf8');
+await bundleEdition('src/main.js', 'src/template.html', 'index.html', 'Classic v1 (Illustrated Edition)');
+await bundleEdition('src/main3d.js', 'src/template3d.html', 'spatial3d.html', 'Spatial v2 (Three.js 3D Edition)');
 fs.writeFileSync(path.join(root, '.nojekyll'), '', 'utf8');
-console.log(`Built self-contained Advent Wunderkammer HTML: ${outPath} (${(finalHtml.length / 1024).toFixed(1)} KB)`);

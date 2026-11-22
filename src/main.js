@@ -1,13 +1,12 @@
-// Main 3D Spatial Controller for "The Grand Advent Wunderkammer · 黑森林 24 格机械降临节秘柜"
-// Zero popup cards: camera dollies close to the 3D cabinet & pulls the 3D curio box out into your hands to spin 360°!
+// Main Controller for "The Grand Advent Wunderkammer · 黑森林 24 格机械降临节秘柜"
+// Real-Artwork Edition: 3D Perspective Hinged Carved Doors + Native Brass Switches + 24 Bespoke Living Dioramas
 
-import * as THREE from 'three';
-import { ADVENT_BY_DAY, ROMAN } from './adventData.js';
+import { ADVENT_DAYS, ADVENT_BY_DAY, CABINET_WIDTH, CABINET_HEIGHT, ROMAN } from './adventData.js';
 import { MUSIC_REPERTOIRE } from './musicScores.js';
 import { WunderkammerAudio } from './audio.js';
-import { createSpatialWunderkammer } from './spatialScene.js';
+import { CabinetAmbientFX, VitrineDioramaFX } from './dioramaFx.js';
 
-const STORAGE_KEY = 'wunderkammer_3d_spatial_v3';
+const STORAGE_KEY = 'wunderkammer_real_art_v2';
 
 function loadState() {
   try {
@@ -26,7 +25,7 @@ function saveState(data) {
 
 function isUnlockedByCalendar(day) {
   const now = new Date();
-  const month = now.getMonth();
+  const month = now.getMonth(); // 11 = December
   const date = now.getDate();
   if (month === 11) return date >= day;
   return month === 0;
@@ -36,51 +35,40 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
-function initSpatialApp() {
-  const canvas = document.getElementById('spatial-canvas');
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    powerPreference: 'high-performance'
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.14;
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b0604);
-  scene.fog = new THREE.FogExp2(0x0d0705, 0.022);
-
-  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / Math.max(1, window.innerHeight), 0.12, 42);
-
-  const spatial = createSpatialWunderkammer(scene);
+function initWunderkammer() {
   const audio = new WunderkammerAudio();
-  audio.onNoteCallback = () => spatial.pulseMusic();
+  const ambientFx = new CabinetAmbientFX(document.getElementById('ambient-fx-canvas'));
+  const vitrineFx = new VitrineDioramaFX(document.getElementById('vitrine-fx-canvas'));
 
-  // Persistent State
+  audio.onNoteCallback = () => ambientFx.pulseMusic();
+
+  // Persistent state
   const saved = loadState();
-  let realDateLock = saved?.realDateLock ?? false;
+  let realDateLock = saved?.realDateLock ?? false; // Default false = Keeper's Free-Play unlocked!
   let openedDays = new Set(Array.isArray(saved?.openedDays) ? saved.openedDays : []);
-  let exploredDays = new Set(Array.isArray(saved?.exploredDays) ? saved.exploredDays : Array.from(openedDays));
-  let focusDay = null;
-  let focusWasAlreadyOpen = false;
+  let currentVitrineDay = null;
   let cascadeTimers = [];
+  let pendingVitrineTimer = null;
 
-  openedDays.forEach((d) => {
-    if (spatial.compartments[d]) {
-      spatial.compartments[d].isOpen = true;
-      spatial.compartments[d].openProgress = 1;
-    }
-  });
+  // DOM References
+  const doorsLayer = document.getElementById('doors-layer');
+  const doorElements = {};
 
-  // ==================== UI ELEMENTS ====================
   const hudDateBtn = document.getElementById('hud-date-btn');
+  const hudResetViewBtn = document.getElementById('hud-reset-view-btn');
   const hudMuteBtn = document.getElementById('hud-mute-btn');
   const toastEl = document.getElementById('toast-banner');
 
-  const bottomDock = document.getElementById('bottom-dock');
+  const roofSwitchDate = document.getElementById('roof-switch-date');
+  const roofSwitchOpenAll = document.getElementById('roof-switch-openall');
+  const trackDateEl = document.getElementById('track-date');
+  const trackOpenAllEl = document.getElementById('track-openall');
+
+  const cuckooSprite = document.getElementById('cuckoo-sprite');
+  const clockHotspot = document.getElementById('clock-hotspot');
+  const pineconeLeft = document.getElementById('pinecone-left');
+  const pineconeRight = document.getElementById('pinecone-right');
+
   const playBtn = document.getElementById('play-btn');
   const openSheetBtn = document.getElementById('open-sheet-btn');
   const closeSheetBtn = document.getElementById('close-sheet-btn');
@@ -95,14 +83,22 @@ function initSpatialApp() {
   const cuckooBtn = document.getElementById('cuckoo-btn');
   const allDoorsBtn = document.getElementById('all-doors-btn');
 
-  const heldHud = document.getElementById('held-hud');
-  const heldTitleEl = document.getElementById('held-title');
-  const windCurioBtn = document.getElementById('wind-curio-btn');
-  const flipCurioBtn = document.getElementById('flip-curio-btn');
-  const putBackCloseBtn = document.getElementById('put-back-close-btn');
-  const putBackOpenBtn = document.getElementById('put-back-open-btn');
-  const prevCurioBtn = document.getElementById('prev-curio-btn');
-  const nextCurioBtn = document.getElementById('next-curio-btn');
+  // Vitrine Modal DOM
+  const vitrineOverlay = document.getElementById('vitrine-overlay');
+  const vitrineArtFrame = document.getElementById('vitrine-art-frame');
+  const vitrineImg = document.getElementById('vitrine-img');
+  const vitrineBadge = document.getElementById('vitrine-badge');
+  const vitrineTitle = document.getElementById('vitrine-title');
+  const vitrineSubtitle = document.getElementById('vitrine-subtitle');
+  const vitrineSummary = document.getElementById('vitrine-summary');
+  const loreBox = document.getElementById('lore-box');
+  const loreText = document.getElementById('lore-text');
+  const vitrineActionBtn = document.getElementById('vitrine-action-btn');
+  const vitrineLoreBtn = document.getElementById('vitrine-lore-btn');
+  const vitrineCloseBtn = document.getElementById('vitrine-close-btn');
+  const prevDayBtn = document.getElementById('prev-day-btn');
+  const nextDayBtn = document.getElementById('next-day-btn');
+  const shutDoorBtn = document.getElementById('shut-door-btn');
 
   let toastTimer = null;
   function showToast(msg, ms = 2800) {
@@ -115,11 +111,104 @@ function initSpatialApp() {
   function persist() {
     saveState({
       realDateLock,
-      openedDays: Array.from(openedDays),
-      exploredDays: Array.from(exploredDays)
+      openedDays: Array.from(openedDays)
     });
   }
 
+  // ==================== BUILD ALL 24 3D CARVED DOORS ====================
+  function computeRadiusStyle(info, leafPart = 'full') {
+    const [x1, y1, x2, y2] = info.rect;
+    const dw = x2 - x1;
+    const dh = y2 - y1;
+    if (info.shape === 'oval') {
+      return '50%';
+    }
+    if (info.shape === 'arch') {
+      const archV = Math.min(98, ((dw * 0.5) / dh) * 100).toFixed(2) + '%';
+      if (leafPart === 'back-double-left') {
+        return `2px 100% 2px 2px / 2px ${archV} 2px 2px`;
+      }
+      if (leafPart === 'back-double-right') {
+        return `100% 2px 2px 2px / ${archV} 2px 2px 2px`;
+      }
+      return `50% 50% 3px 3px / ${archV} ${archV} 3px 3px`;
+    }
+    return '3px';
+  }
+
+  ADVENT_DAYS.forEach((info) => {
+    const [x1, y1, x2, y2] = info.rect;
+    const slot = document.createElement('div');
+    slot.className = 'cabinet-door-slot';
+    slot.dataset.day = String(info.day);
+    slot.style.left = `${((x1 / CABINET_WIDTH) * 100).toFixed(3)}%`;
+    slot.style.top = `${((y1 / CABINET_HEIGHT) * 100).toFixed(3)}%`;
+    slot.style.width = `${(((x2 - x1) / CABINET_WIDTH) * 100).toFixed(3)}%`;
+    slot.style.height = `${(((y2 - y1) / CABINET_HEIGHT) * 100).toFixed(3)}%`;
+
+    // Recessed Niche Interior holding door-XX.webp
+    const niche = document.createElement('div');
+    niche.className = 'niche-interior';
+    niche.style.borderRadius = computeRadiusStyle(info, 'full');
+    const nicheImg = document.createElement('img');
+    nicheImg.src = `assets/doors/door-${pad2(info.day)}.webp`;
+    nicheImg.alt = info.title;
+    nicheImg.loading = 'lazy';
+    niche.appendChild(nicheImg);
+    slot.appendChild(niche);
+
+    // 3D Hinged Carved Door Leaf / Double Leaves
+    if (info.hinge === 'double') {
+      ['L', 'R'].forEach((side) => {
+        const leaf = document.createElement('div');
+        leaf.className = `door-leaf ${side === 'L' ? 'double-left' : 'double-right'}`;
+
+        const front = document.createElement('div');
+        front.className = 'leaf-front';
+        const fImg = document.createElement('img');
+        fImg.src = `assets/fronts/front-24${side}.webp`;
+        fImg.alt = `${info.title} ${side}`;
+        front.appendChild(fImg);
+
+        const back = document.createElement('div');
+        back.className = 'leaf-back';
+        back.style.borderRadius = computeRadiusStyle(info, side === 'L' ? 'back-double-left' : 'back-double-right');
+        back.textContent = side === 'L' ? 'XX' : 'IV';
+
+        leaf.appendChild(front);
+        leaf.appendChild(back);
+        slot.appendChild(leaf);
+      });
+    } else {
+      const leaf = document.createElement('div');
+      leaf.className = `door-leaf single-leaf hinge-${info.hinge}`;
+
+      const front = document.createElement('div');
+      front.className = 'leaf-front';
+      const fImg = document.createElement('img');
+      fImg.src = `assets/fronts/front-${pad2(info.day)}.webp`;
+      fImg.alt = `${info.day} 号浮雕门`;
+      front.appendChild(fImg);
+
+      const back = document.createElement('div');
+      back.className = 'leaf-back';
+      back.style.borderRadius = computeRadiusStyle(info, 'full');
+      back.textContent = ROMAN[info.day];
+
+      leaf.appendChild(front);
+      leaf.appendChild(back);
+      slot.appendChild(leaf);
+    }
+
+    if (openedDays.has(info.day)) {
+      slot.classList.add('is-open');
+    }
+
+    doorsLayer.appendChild(slot);
+    doorElements[info.day] = slot;
+  });
+
+  // ==================== REPERTOIRE POPUP ====================
   MUSIC_REPERTOIRE.forEach((piece, idx) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -141,8 +230,11 @@ function initSpatialApp() {
   });
 
   function syncUI() {
-    const anyManyOpen = openedDays.size >= 12;
-    spatial.setSwitchStates(realDateLock, openedDays.size >= 24);
+    const allOpen = openedDays.size >= 24;
+
+    // Sync both native painted roof brass switches & HUD buttons!
+    trackDateEl.classList.toggle('active', realDateLock);
+    trackOpenAllEl.classList.toggle('active', allOpen);
 
     hudDateBtn.textContent = realDateLock ? '📅 日历锁开启' : '🗝️ 自由把玩';
     hudDateBtn.classList.toggle('active-mode', !realDateLock);
@@ -153,118 +245,84 @@ function initSpatialApp() {
     currentTrackTitle.textContent = piece.title;
     currentTrackIdx.textContent = `(${audio.trackIndex + 1}/${MUSIC_REPERTOIRE.length} · 选曲 ▾)`;
 
-    progressCountEl.textContent = `${exploredDays.size}/24`;
-    allDoorsBtn.textContent = anyManyOpen ? '🚪 全柜合拢' : '🚪 全柜盛开';
+    progressCountEl.textContent = `${openedDays.size}/24`;
+    allDoorsBtn.textContent = allOpen ? '🚪 全柜合拢' : '🚪 全柜盛开';
 
     trackListEl.querySelectorAll('.track-row').forEach((row, idx) => {
       row.classList.toggle('current', idx === audio.trackIndex);
     });
   }
 
-  // ==================== CAMERA & HELD-IN-HAND 3D CHOREOGRAPHY ====================
-  // Start with a cinematic three-quarter 3D angle (-0.30 -> -0.14) so the 1m-deep walnut side wall,
-  // overhanging snow-shingle chalet roof & 22cm plinth ledge show true 3D furniture volume immediately!
-  let orbitYaw = -0.32;
-  let orbitPitch = 0.075;
-  let targetOrbitYaw = -0.14;
-  let targetOrbitPitch = 0.038;
-  let overviewZoom = 1.0;
-  let targetOverviewZoom = 1.0;
-
-  // Held 3D Curio rotation & zoom in player's hands
-  let heldYaw = 0;
-  let heldPitch = 0;
-  let targetHeldYaw = 0;
-  let targetHeldPitch = 0;
-  let heldScaleAdj = 1.0;
-  let targetHeldScaleAdj = 1.0;
-
-  const camPos = new THREE.Vector3(0, 0.15, 13.5);
-  const camTarget = new THREE.Vector3(0, 0.10, 0);
-  const desiredCamPos = new THREE.Vector3();
-  const desiredCamTarget = new THREE.Vector3();
-  const heldWorldPos = new THREE.Vector3();
-
-  function getOverviewDistance() {
-    const aspect = Math.max(0.38, window.innerWidth / Math.max(1, window.innerHeight));
-    return Math.max(11.4, 6.55 / aspect);
+  // ==================== DOOR & VITRINE INTERACTIONS ====================
+  function preloadNeighborImages(day) {
+    const prev = ((day - 2 + 24) % 24) + 1;
+    const next = (day % 24) + 1;
+    [prev, next].forEach((d) => {
+      const im = new Image();
+      im.src = `assets/doors/door-${pad2(d)}.webp`;
+    });
   }
 
-  function updateCameraAndHandTargets() {
-    const aspect = Math.max(0.38, window.innerWidth / Math.max(1, window.innerHeight));
-    const isPortrait = aspect < 0.82;
-
-    if (focusDay && spatial.compartments[focusDay]) {
-      const comp = spatial.compartments[focusDay];
-      const closeDist = isPortrait ? 4.35 : 3.45;
-      const yShift = isPortrait ? -0.14 : -0.06;
-
-      // Camera dollies close to that open compartment on the 3D cabinet!
-      desiredCamTarget.set(comp.center.x * 0.90, comp.center.y + yShift, 0.12);
-      desiredCamPos.set(
-        comp.center.x * 0.88,
-        comp.center.y + (isPortrait ? 0.02 : 0.05),
-        closeDist
-      );
-      return isPortrait ? 0.66 * heldScaleAdj : 0.78 * heldScaleAdj;
-    }
-
-    // Overview 3D Cabinet Orbit & Dolly Zoom
-    const dist = getOverviewDistance() * overviewZoom;
-    desiredCamTarget.set(0, 0.06, -0.16);
-    desiredCamPos.set(
-      Math.sin(orbitYaw) * dist,
-      0.06 + Math.sin(orbitPitch) * dist * 0.55,
-      Math.cos(orbitYaw) * dist
-    );
-    return 0.7;
-  }
-
-  updateCameraAndHandTargets();
-  camPos.copy(desiredCamPos);
-  camTarget.copy(desiredCamTarget);
-
-  // ==================== COMPARTMENT OPEN, CLOSE, PICK-UP & PUT-BACK ====================
-  function closeSingleDoor(day, playSound = true) {
-    const comp = spatial.compartments[day];
-    if (!comp || !comp.isOpen) return;
-    comp.isOpen = false;
-    openedDays.delete(day);
-    if (playSound) audio.playSfx('doorClose');
-    persist();
-    syncUI();
-  }
-
-  function inspectAndHoldCurio(day) {
+  function showVitrineModal(day) {
     const info = ADVENT_BY_DAY[day];
-    const comp = spatial.compartments[day];
-    if (!info || !comp) return;
+    if (!info) return;
+    currentVitrineDay = day;
+    repertoireSheet.classList.remove('open');
+
+    vitrineImg.src = `assets/doors/door-${pad2(day)}.webp`;
+    vitrineImg.alt = info.title;
+    vitrineBadge.textContent = `No. ${pad2(day)} · ${ROMAN[day]}`;
+    vitrineTitle.textContent = info.title;
+    vitrineSubtitle.textContent = info.subtitle;
+    vitrineSummary.textContent = info.summary;
+    loreText.textContent = info.lore;
+    vitrineActionBtn.textContent = info.actionLabel;
+
+    loreBox.classList.remove('open');
+    vitrineLoreBtn.textContent = '📜 守柜人手记';
+
+    vitrineFx.setScene(info.fxType);
+    vitrineOverlay.classList.add('open');
+    preloadNeighborImages(day);
+  }
+
+  function closeVitrineModal() {
+    currentVitrineDay = null;
+    vitrineOverlay.classList.remove('open');
+  }
+
+  function clearCascades() {
+    cascadeTimers.forEach((t) => clearTimeout(t));
+    cascadeTimers = [];
+    if (pendingVitrineTimer) {
+      clearTimeout(pendingVitrineTimer);
+      pendingVitrineTimer = null;
+    }
+  }
+
+  function handleDoorTap(day, { immediateModal = false } = {}) {
+    audio.unlock();
+    const info = ADVENT_BY_DAY[day];
+    const slot = doorElements[day];
+    if (!info || !slot) return;
 
     if (realDateLock && !isUnlockedByCalendar(day)) {
       audio.playSfx('locked');
-      spatial.highlightDoor(day, 2.8);
-      showToast(`🔒 第 ${day} 格将于 12 月 ${day} 日开启 · 可拨动屋檐下「Keeper's Open-All」切换`);
+      ambientFx.highlightDoorRect(info.rect, 2.8);
+      showToast(`🔒 第 ${day} 格将于 12 月 ${day} 日解锁 · 可拨动屋檐下「Keeper's Open-All」或点右上角切换`);
       return;
     }
 
-    repertoireSheet.classList.remove('open');
-
-    // If switching directly from another held curio that wasn't previously open, tidy & shut the previous door!
-    if (focusDay && focusDay !== day && !focusWasAlreadyOpen) {
-      closeSingleDoor(focusDay, false);
-    }
-
-    focusWasAlreadyOpen = comp.isOpen;
-    exploredDays.add(day);
-
-    if (!comp.isOpen) {
-      comp.isOpen = true;
+    const wasOpen = openedDays.has(day);
+    if (!wasOpen) {
       openedDays.add(day);
+      slot.classList.add('is-open');
       persist();
       syncUI();
+
       if (day === 24) {
         audio.playSfx('finale');
-        spatial.triggerCuckoo(5.0);
+        triggerCuckooBelfry(false);
         if (!audio.playing) {
           audio.startMusic();
           syncUI();
@@ -272,57 +330,48 @@ function initSpatialApp() {
       } else {
         audio.playSfx('doorOpen');
       }
+
+      // Let the user watch the carved gilded door swing open on the cabinet first (~380ms), then blossom the Vitrine!
+      if (pendingVitrineTimer) clearTimeout(pendingVitrineTimer);
+      pendingVitrineTimer = setTimeout(() => {
+        showVitrineModal(day);
+      }, immediateModal ? 40 : 400);
     } else {
-      persist();
-      syncUI();
       audio.playSfx(info.sfx);
+      showVitrineModal(day);
     }
-
-    focusDay = day;
-    heldYaw = -0.12;
-    heldPitch = 0.04;
-    targetHeldYaw = -0.06;
-    targetHeldPitch = 0.02;
-    targetHeldScaleAdj = 1.0;
-
-    spatial.pullOutCurio(day);
-
-    heldTitleEl.textContent = `No. ${pad2(day)} · ${info.title}`;
-    flipCurioBtn.textContent = '🔄 翻看背面';
-    bottomDock.classList.add('hidden');
-    heldHud.classList.add('visible');
   }
 
-  function releaseHeldCurio(closeDoor = true) {
-    if (!focusDay) return;
-    const returningDay = focusDay;
-    focusDay = null;
+  // ==================== CUCKOO, CLOCK & PINECONE ACTIONS ====================
+  let cuckooAnimTimer = null;
+  function triggerCuckooBelfry(withToast = true) {
+    audio.unlock();
+    audio.playSfx('cuckoo');
+    ambientFx.triggerCuckoo(4.5);
+    cuckooSprite.classList.add('singing');
+    if (cuckooAnimTimer) clearTimeout(cuckooAnimTimer);
+    cuckooAnimTimer = setTimeout(() => cuckooSprite.classList.remove('singing'), 2400);
 
-    if (closeDoor) {
-      spatial.putBackCurio(true, (shutDay) => {
-        openedDays.delete(shutDay);
-        audio.playSfx('doorClose');
-        persist();
-        syncUI();
-      });
-    } else {
-      openedDays.add(returningDay);
-      spatial.putBackCurio(false, null);
-      audio.playSfx('page');
-      persist();
+    if (!audio.playing) {
+      audio.startMusic();
       syncUI();
-      showToast(`📥 已放回第 ${returningDay} 号木龛（再次轻点敞开的木门即可合上）`, 2600);
     }
-
-    heldHud.classList.remove('visible');
-    bottomDock.classList.remove('hidden');
+    if (withToast) {
+      showToast('🔔 布谷——布谷！顶阁木雕报时鸟振翅奏鸣');
+    }
   }
 
-  function clearCascades() {
-    cascadeTimers.forEach((t) => clearTimeout(t));
-    cascadeTimers = [];
+  function pullPinecone(el) {
+    audio.unlock();
+    audio.playSfx('ratchet');
+    el.style.transform = 'translateY(14px)';
+    setTimeout(() => {
+      el.style.transform = '';
+      triggerCuckooBelfry(true);
+    }, 240);
   }
 
+  // ==================== TOGGLE ALL DOORS & DATE LOCK ====================
   function toggleDateLockMode() {
     audio.unlock();
     realDateLock = !realDateLock;
@@ -331,50 +380,171 @@ function initSpatialApp() {
     syncUI();
     showToast(
       realDateLock
-        ? '📅 已拨开「Follow Real Date」：按 12 月 1–24 日逐夜解锁'
-        : '🗝️ 已切换至「自由把玩模式」：全部 24 格奇珍均可随时取出把玩'
+        ? '📅 已拨开「Follow Real Date」：按 12 月 1–24 日真实日期逐夜解锁'
+        : '🗝️ 已切换回「自由把玩模式」：全部 24 扇浮雕金门随时可推开'
     );
   }
 
   function toggleOpenAllDoors() {
     audio.unlock();
     clearCascades();
-    if (focusDay) releaseHeldCurio(false);
+    closeVitrineModal();
     audio.playSfx('switchClick');
 
-    if (openedDays.size >= 12) {
+    if (openedDays.size >= 24) {
       for (let d = 1; d <= 24; d++) {
-        spatial.compartments[d].isOpen = false;
+        doorElements[d].classList.remove('is-open');
       }
       openedDays.clear();
       audio.playSfx('doorClose');
       persist();
       syncUI();
-      showToast('🚪 24 扇 3D 浮雕金门已全部轻声合拢');
+      showToast('🚪 24 扇鎏金浮雕暗门已轻声合拢');
     } else {
       realDateLock = false;
       if (!audio.playing) audio.startMusic();
+
       for (let d = 1; d <= 24; d++) {
         const t = setTimeout(() => {
-          spatial.compartments[d].isOpen = true;
+          doorElements[d].classList.add('is-open');
           openedDays.add(d);
-          exploredDays.add(d);
           if (d % 6 === 1) audio.playSfx('crystal');
           if (d === 24) {
-            spatial.triggerCuckoo(4.8);
+            triggerCuckooBelfry(false);
             persist();
           }
           syncUI();
-        }, (d - 1) * 45);
+        }, (d - 1) * 48);
         cascadeTimers.push(t);
       }
-      showToast('✨ 全柜盛开：点内龛可取出把玩，点敞开的门扇可单独关门', 3600);
+      showToast('✨ Keeper’s Open-All Mode：24 扇浮雕金门依次洞开！轻点任一内龛可放大把玩', 3600);
     }
   }
 
-  // ==================== HUD & HAND-PLAY BUTTONS ====================
+  // ==================== PAN & PINCH-ZOOM STAGE ====================
+  const viewportWrap = document.getElementById('viewport-wrap');
+  const panLayer = document.getElementById('cabinet-pan-layer');
+
+  let scale = 1;
+  let panX = 0;
+  let panY = 0;
+  const pointers = new Map();
+  let downPt = { x: 0, y: 0, t: 0, target: null };
+  let wasDragged = false;
+  let lastPinch = 0;
+
+  function applyStageTransform() {
+    const maxPanX = Math.max(48, (window.innerWidth * (scale - 0.82)) * 0.55);
+    const maxPanY = Math.max(24, (window.innerHeight * (scale - 0.92)) * 0.52);
+    panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+    panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+    panLayer.style.transform = `translate3d(${panX.toFixed(1)}px, ${panY.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
+    hudResetViewBtn.style.display = (scale > 1.06 || Math.hypot(panX, panY) > 28) ? 'inline-block' : 'none';
+  }
+
+  hudResetViewBtn.addEventListener('click', () => {
+    scale = 1;
+    panX = 0;
+    panY = 0;
+    applyStageTransform();
+  });
+
+  viewportWrap.addEventListener('pointerdown', (e) => {
+    audio.unlock();
+    repertoireSheet.classList.remove('open');
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) {
+      downPt = { x: e.clientX, y: e.clientY, t: performance.now(), target: e.target };
+      wasDragged = false;
+    } else if (pointers.size === 2) {
+      const pts = Array.from(pointers.values());
+      lastPinch = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      wasDragged = true;
+    }
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.size === 2) {
+      const pts = Array.from(pointers.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (lastPinch > 0) {
+        scale = Math.max(0.88, Math.min(3.0, scale * (dist / lastPinch)));
+        applyStageTransform();
+      }
+      lastPinch = dist;
+      wasDragged = true;
+      return;
+    }
+
+    const dx = e.clientX - prev.x;
+    const dy = e.clientY - prev.y;
+    if (Math.hypot(e.clientX - downPt.x, e.clientY - downPt.y) > 8) {
+      wasDragged = true;
+    }
+    if (wasDragged) {
+      panX += dx;
+      panY += dy;
+      applyStageTransform();
+    }
+  });
+
+  window.addEventListener('pointerup', (e) => {
+    const tracked = pointers.has(e.pointerId);
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) lastPinch = 0;
+
+    if (!tracked || wasDragged || performance.now() - downPt.t > 550) return;
+
+    // Clean tap! Resolve interactive cabinet element
+    const el = downPt.target;
+    if (!el) return;
+
+    const doorSlot = el.closest?.('.cabinet-door-slot');
+    if (doorSlot) {
+      const day = parseInt(doorSlot.dataset.day, 10);
+      if (day >= 1 && day <= 24) handleDoorTap(day);
+      return;
+    }
+
+    if (el.closest?.('#roof-switch-date')) {
+      toggleDateLockMode();
+      return;
+    }
+    if (el.closest?.('#roof-switch-openall')) {
+      toggleOpenAllDoors();
+      return;
+    }
+    if (el.closest?.('#cuckoo-sprite') || el.closest?.('#clock-hotspot')) {
+      triggerCuckooBelfry(true);
+      return;
+    }
+    if (el.closest?.('#pinecone-left')) {
+      pullPinecone(pineconeLeft);
+      return;
+    }
+    if (el.closest?.('#pinecone-right')) {
+      pullPinecone(pineconeRight);
+    }
+  });
+
+  viewportWrap.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      scale = Math.max(0.88, Math.min(3.0, scale * (1 - e.deltaY * 0.0012)));
+      applyStageTransform();
+    },
+    { passive: false }
+  );
+
+  // ==================== HUD & VITRINE LISTENERS ====================
   hudDateBtn.addEventListener('click', toggleDateLockMode);
   allDoorsBtn.addEventListener('click', toggleOpenAllDoors);
+  cuckooBtn.addEventListener('click', () => triggerCuckooBelfry(true));
 
   hudMuteBtn.addEventListener('click', () => {
     audio.unlock();
@@ -385,7 +555,9 @@ function initSpatialApp() {
   playBtn.addEventListener('click', () => {
     const playing = audio.toggleMusic();
     syncUI();
-    if (playing) showToast(`♪ 八音机芯奏鸣：《${audio.getCurrentPiece().title}》`);
+    if (playing) {
+      showToast(`♪ 八音机芯奏鸣：《${audio.getCurrentPiece().title}》`);
+    }
   });
 
   openSheetBtn.addEventListener('click', () => {
@@ -402,339 +574,145 @@ function initSpatialApp() {
     showToast(`♪ 切换曲目：《${piece.title}》`);
   });
 
-  cuckooBtn.addEventListener('click', () => {
-    audio.unlock();
-    spatial.pullPinecone(0);
-    audio.playSfx('cuckoo');
-    if (!audio.playing) {
-      audio.startMusic();
-      syncUI();
-    }
-    showToast('🔔 松果重锤上弦：顶阁木雕布谷鸟探身报时！');
-  });
-
   finderBtn.addEventListener('click', () => {
     audio.unlock();
-    if (focusDay) releaseHeldCurio(true);
-    let nextUnexplored = null;
+    closeVitrineModal();
+    let targetDay = null;
     for (let d = 1; d <= 24; d++) {
-      if (!exploredDays.has(d)) {
-        nextUnexplored = d;
+      if (!openedDays.has(d)) {
+        targetDay = d;
         break;
       }
     }
-    const target = nextUnexplored || 24;
-    spatial.highlightDoor(target, 4.5);
-    audio.playSfx('crystal');
-    showToast(
-      nextUnexplored
-        ? `✨ 金色流萤已圈出第 ${target} 号（${ADVENT_BY_DAY[target].title}）位置`
-        : '🌟 全部 24 件奇珍均已品鉴！轻点任意木门可随时取出把玩'
-    );
+    if (!targetDay) {
+      ambientFx.highlightDoorRect(ADVENT_BY_DAY[24].rect, 4.2);
+      showToast('🌟 全部 24 扇奇珍门已尽数洞开！轻点任意内龛即可放大赏玩');
+    } else {
+      ambientFx.highlightDoorRect(ADVENT_BY_DAY[targetDay].rect, 4.5);
+      audio.playSfx('crystal');
+      showToast(`✨ 金色流萤已为你圈出第 ${targetDay} 号（${ADVENT_BY_DAY[targetDay].title}）位置`);
+    }
   });
 
-  // Held-in-Hand controls
-  windCurioBtn.addEventListener('click', () => {
-    if (!focusDay) return;
-    spatial.windHeldCurio();
-    audio.playSfx(ADVENT_BY_DAY[focusDay].sfx);
+  // Vitrine Modal interactions
+  vitrineCloseBtn.addEventListener('click', closeVitrineModal);
+  vitrineOverlay.addEventListener('click', (e) => {
+    if (e.target === vitrineOverlay) closeVitrineModal();
   });
 
-  flipCurioBtn.addEventListener('click', () => {
-    if (!focusDay) return;
-    const norm = ((targetHeldYaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    const showingBack = norm > Math.PI * 0.5 && norm < Math.PI * 1.5;
-    targetHeldYaw = showingBack ? 0 : Math.PI;
-    targetHeldPitch = 0;
-    flipCurioBtn.textContent = showingBack ? '🔄 翻看背面' : '🔄 翻回正面';
+  vitrineActionBtn.addEventListener('click', () => {
+    if (!currentVitrineDay) return;
+    const info = ADVENT_BY_DAY[currentVitrineDay];
+    vitrineFx.triggerBurst();
+    audio.playSfx(info.sfx);
+  });
+
+  vitrineLoreBtn.addEventListener('click', () => {
+    const open = loreBox.classList.toggle('open');
+    vitrineLoreBtn.textContent = open ? '📜 收起手记' : '📜 守柜人手记';
     audio.playSfx('page');
   });
 
-  putBackCloseBtn.addEventListener('click', () => releaseHeldCurio(true));
-  putBackOpenBtn.addEventListener('click', () => releaseHeldCurio(false));
-
-  prevCurioBtn.addEventListener('click', () => {
-    if (!focusDay) return;
-    inspectAndHoldCurio(((focusDay - 2 + 24) % 24) + 1);
+  shutDoorBtn.addEventListener('click', () => {
+    if (!currentVitrineDay) return;
+    const d = currentVitrineDay;
+    doorElements[d]?.classList.remove('is-open');
+    openedDays.delete(d);
+    audio.playSfx('doorClose');
+    persist();
+    syncUI();
+    closeVitrineModal();
   });
 
-  nextCurioBtn.addEventListener('click', () => {
-    if (!focusDay) return;
-    inspectAndHoldCurio((focusDay % 24) + 1);
+  prevDayBtn.addEventListener('click', () => {
+    if (!currentVitrineDay) return;
+    const prev = ((currentVitrineDay - 2 + 24) % 24) + 1;
+    handleDoorTap(prev, { immediateModal: true });
   });
 
-  // ==================== POINTER ORBIT, 360° HAND SPIN & 3D RAYCASTING ====================
-  const raycaster = new THREE.Raycaster();
-  const ndc = new THREE.Vector2();
-  const pointers = new Map();
-  let downInfo = { x: 0, y: 0, t: 0 };
-  let dragged = false;
-  let lastPinch = 0;
-
-  canvas.addEventListener('pointerdown', (e) => {
-    audio.unlock();
-    repertoireSheet.classList.remove('open');
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size === 1) {
-      downInfo = { x: e.clientX, y: e.clientY, t: performance.now() };
-      dragged = false;
-    } else if (pointers.size === 2) {
-      const pts = Array.from(pointers.values());
-      lastPinch = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-      dragged = true;
-    }
+  nextDayBtn.addEventListener('click', () => {
+    if (!currentVitrineDay) return;
+    const next = (currentVitrineDay % 24) + 1;
+    handleDoorTap(next, { immediateModal: true });
   });
 
-  window.addEventListener('pointermove', (e) => {
-    if (!pointers.has(e.pointerId)) return;
-    const prev = pointers.get(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (pointers.size === 2) {
-      const pts = Array.from(pointers.values());
-      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-      if (lastPinch > 0) {
-        const ratio = dist / lastPinch;
-        if (focusDay) {
-          targetHeldScaleAdj = THREE.MathUtils.clamp(targetHeldScaleAdj * ratio, 0.75, 1.55);
-        } else {
-          targetOverviewZoom = THREE.MathUtils.clamp(targetOverviewZoom / ratio, 0.44, 1.24);
-        }
-      }
-      lastPinch = dist;
-      dragged = true;
-      return;
-    }
-
-    const dx = e.clientX - prev.x;
-    const dy = e.clientY - prev.y;
-    if (Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) > 7) {
-      dragged = true;
-    }
-
-    if (focusDay) {
-      // Freely rotate the held 3D curio reliquary 360° in your hands!
-      targetHeldYaw += dx * 0.0085;
-      targetHeldPitch = THREE.MathUtils.clamp(targetHeldPitch + dy * 0.006, -0.52, 0.52);
-
-      const norm = ((targetHeldYaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-      const showingBack = norm > Math.PI * 0.5 && norm < Math.PI * 1.5;
-      flipCurioBtn.textContent = showingBack ? '🔄 翻回正面' : '🔄 翻看背面';
-    } else {
-      // Wide ±42° 3D spatial orbit around the 1m-deep Black Forest walnut cabinet!
-      targetOrbitYaw = THREE.MathUtils.clamp(targetOrbitYaw - dx * 0.0046, -0.72, 0.72);
-      targetOrbitPitch = THREE.MathUtils.clamp(targetOrbitPitch + dy * 0.0034, -0.22, 0.28);
+  // Touch sparkle trail & tap burst directly on the 768x1024 artwork!
+  let vitrinePointerDown = false;
+  let lastSparkAudioTime = 0;
+  vitrineArtFrame.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    vitrinePointerDown = true;
+    const r = vitrineArtFrame.getBoundingClientRect();
+    vitrineFx.addTouchSpark((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    vitrineFx.triggerBurst();
+    if (currentVitrineDay) {
+      audio.playSfx(ADVENT_BY_DAY[currentVitrineDay].sfx);
     }
   });
 
-  window.addEventListener('pointerup', (e) => {
-    const tracked = pointers.has(e.pointerId);
-    pointers.delete(e.pointerId);
-    if (pointers.size < 2) lastPinch = 0;
-
-    if (!tracked || dragged || performance.now() - downInfo.t > 520) return;
-
-    const rect = canvas.getBoundingClientRect();
-    ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(spatial.interactiveMeshes, false);
-
-    if (hits.length === 0) {
-      if (focusDay) releaseHeldCurio(true);
-      return;
-    }
-
-    for (const hit of hits) {
-      const ud = hit.object.userData;
-      if (!ud) continue;
-
-      // If currently holding a curio in hand, prioritize interacting with the held 3D object first!
-      if (focusDay) {
-        if (ud.type === 'windKey' || ud.type === 'heldCurioFront') {
-          spatial.windHeldCurio(hit.uv || null);
-          audio.playSfx(ADVENT_BY_DAY[focusDay].sfx);
-          return;
-        }
-        if (ud.type === 'heldCurioBack') {
-          targetHeldYaw = 0;
-          targetHeldPitch = 0;
-          flipCurioBtn.textContent = '🔄 翻看背面';
-          audio.playSfx('page');
-          return;
-        }
-      }
-
-      if (ud.type === 'door') {
-        if (focusDay === ud.day) {
-          releaseHeldCurio(true);
-        } else if (!focusDay && spatial.compartments[ud.day]?.isOpen) {
-          // Tapping an open 3D wooden door panel swings it smoothly SHUT!
-          closeSingleDoor(ud.day, true);
-        } else {
-          inspectAndHoldCurio(ud.day);
-        }
-        return;
-      }
-
-      if (ud.type === 'nicheCurio') {
-        if (focusDay === ud.day) {
-          releaseHeldCurio(true);
-        } else {
-          inspectAndHoldCurio(ud.day);
-        }
-        return;
-      }
-
-      if (ud.type === 'switchDate') {
-        toggleDateLockMode();
-        return;
-      }
-      if (ud.type === 'switchOpenAll') {
-        toggleOpenAllDoors();
-        return;
-      }
-      if (ud.type === 'pinecone') {
-        audio.playSfx('ratchet');
-        setTimeout(() => {
-          spatial.pullPinecone(ud.idx);
-          audio.playSfx('cuckoo');
-          if (!audio.playing) {
-            audio.startMusic();
-            syncUI();
-          }
-          showToast('🔔 松果重锤上弦：顶阁木雕布谷鸟探身报时！');
-        }, 200);
-        return;
-      }
-      if (ud.type === 'cuckoo') {
-        spatial.triggerCuckoo(4.5);
-        audio.playSfx('cuckoo');
-        if (!audio.playing) {
-          audio.startMusic();
-          syncUI();
-        }
-        showToast('🔔 布谷——布谷！顶阁报时鸟欢唱');
-        return;
-      }
-    }
-
-    // Tapped cabinet background while holding a curio -> put curio back & close its door!
-    if (focusDay) {
-      releaseHeldCurio(true);
+  vitrineArtFrame.addEventListener('pointermove', (e) => {
+    if (!vitrinePointerDown) return;
+    const r = vitrineArtFrame.getBoundingClientRect();
+    vitrineFx.addTouchSpark((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    const now = performance.now();
+    if (now - lastSparkAudioTime > 260) {
+      lastSparkAudioTime = now;
+      audio.playSfx('crystal');
     }
   });
 
-  canvas.addEventListener(
-    'wheel',
-    (e) => {
-      e.preventDefault();
-      if (focusDay) {
-        targetHeldScaleAdj = THREE.MathUtils.clamp(targetHeldScaleAdj - e.deltaY * 0.0008, 0.75, 1.55);
-      } else {
-        targetOverviewZoom = THREE.MathUtils.clamp(targetOverviewZoom + e.deltaY * 0.0008, 0.44, 1.24);
-      }
-    },
-    { passive: false }
-  );
+  window.addEventListener('pointerup', () => {
+    vitrinePointerDown = false;
+  });
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && focusDay) {
-      releaseHeldCurio();
-    } else if (e.key === 'ArrowRight' && focusDay) {
-      inspectAndHoldCurio((focusDay % 24) + 1);
-    } else if (e.key === 'ArrowLeft' && focusDay) {
-      inspectAndHoldCurio(((focusDay - 2 + 24) % 24) + 1);
+    if (e.key === 'Escape') {
+      repertoireSheet.classList.remove('open');
+      closeVitrineModal();
+    } else if (e.key === 'ArrowRight' && currentVitrineDay) {
+      handleDoorTap((currentVitrineDay % 24) + 1, { immediateModal: true });
+    } else if (e.key === 'ArrowLeft' && currentVitrineDay) {
+      handleDoorTap(((currentVitrineDay - 2 + 24) % 24) + 1, { immediateModal: true });
     }
-  });
-
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / Math.max(1, window.innerHeight);
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
   syncUI();
 
-  // ==================== ANIMATION LOOP ====================
-  const clock = new THREE.Clock();
+  // ==================== 60/120FPS RENDER LOOP ====================
+  let lastT = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, Math.max(0.001, (now - lastT) / 1000));
+    lastT = now;
+    const sec = now / 1000;
 
-  function animate() {
-    requestAnimationFrame(animate);
-    const dt = Math.min(0.05, clock.getDelta());
-    const elapsed = clock.elapsedTime;
-
-    orbitYaw += (targetOrbitYaw - orbitYaw) * Math.min(1, dt * 7.5);
-    orbitPitch += (targetOrbitPitch - orbitPitch) * Math.min(1, dt * 7.5);
-    overviewZoom += (targetOverviewZoom - overviewZoom) * Math.min(1, dt * 7.5);
-
-    heldYaw += (targetHeldYaw - heldYaw) * Math.min(1, dt * 8.5);
-    heldPitch += (targetHeldPitch - heldPitch) * Math.min(1, dt * 8.5);
-    heldScaleAdj += (targetHeldScaleAdj - heldScaleAdj) * Math.min(1, dt * 8.5);
-
-    const handScale = updateCameraAndHandTargets();
-
-    const camLerp = Math.min(1, dt * 5.2);
-    camPos.lerp(desiredCamPos, camLerp);
-    camTarget.lerp(desiredCamTarget, camLerp);
-    camera.position.copy(camPos);
-    camera.lookAt(camTarget);
-
-    // Keep the held 3D curio centered right in the sweet spot of the player's gaze for all 24 doors!
-    heldWorldPos.lerpVectors(camPos, camTarget, 0.725);
-    heldWorldPos.y += 0.13;
-
-    // Subtle idle breathing float when holding a curio in your hands
-    const idleYaw = heldYaw + (focusDay ? Math.sin(elapsed * 1.4) * 0.035 : 0);
-    const idlePitch = heldPitch + (focusDay ? Math.cos(elapsed * 1.1) * 0.022 : 0);
-
-    spatial.update(elapsed, dt, heldWorldPos, idleYaw, idlePitch, handScale);
-    renderer.render(scene, camera);
+    ambientFx.update(sec, dt);
+    if (currentVitrineDay !== null) {
+      vitrineFx.update(sec, dt);
+    }
+    requestAnimationFrame(frame);
   }
-
-  animate();
+  requestAnimationFrame(frame);
 
   // Expose QA hooks
   window.__wunderkammer = {
-    holdCurio: inspectAndHoldCurio,
-    putBack: releaseHeldCurio,
-    setOrbit: (yaw, pitch = 0.05) => {
-      targetOrbitYaw = yaw;
-      targetOrbitPitch = pitch;
-    },
-    setHeldAngles: (yaw, pitch = 0) => {
-      targetHeldYaw = yaw;
-      targetHeldPitch = pitch;
-    },
-    snap: () => {
-      orbitYaw = targetOrbitYaw;
-      orbitPitch = targetOrbitPitch;
-      overviewZoom = targetOverviewZoom;
-      heldYaw = targetHeldYaw;
-      heldPitch = targetHeldPitch;
-      heldScaleAdj = targetHeldScaleAdj;
-      const hs = updateCameraAndHandTargets();
-      camPos.copy(desiredCamPos);
-      camTarget.copy(desiredCamTarget);
-      camera.position.copy(camPos);
-      camera.lookAt(camTarget);
-      heldWorldPos.lerpVectors(camPos, camTarget, 0.725);
-      heldWorldPos.y += 0.13;
-      for (let i = 0; i < 20; i++) {
-        spatial.update(clock.elapsedTime + i * 0.04, 0.04, heldWorldPos, heldYaw, heldPitch, hs);
-      }
-      renderer.render(scene, camera);
-    },
+    openDoor: (d) => handleDoorTap(d, { immediateModal: true }),
+    closeVitrine: closeVitrineModal,
     openAllImmediate: () => {
       for (let d = 1; d <= 24; d++) {
-        spatial.compartments[d].isOpen = true;
-        spatial.compartments[d].openProgress = 1;
+        doorElements[d].classList.add('is-open');
         openedDays.add(d);
       }
+      syncUI();
+    },
+    closeAllImmediate: () => {
+      for (let d = 1; d <= 24; d++) {
+        doorElements[d].classList.remove('is-open');
+      }
+      openedDays.clear();
+      closeVitrineModal();
       syncUI();
     }
   };
 }
 
-initSpatialApp();
+initWunderkammer();
